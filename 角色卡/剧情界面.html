@@ -185,56 +185,55 @@ body{
 .pill:hover::after{ background:var(--mint-2); box-shadow:0 0 10px rgba(95,224,200,.4); }
 .pill.off{ opacity:.4; }
 
-/* ---------- 底部对话框 ---------- */
-.dialog{ position:absolute; left:50%; bottom:36px; z-index:8; width:640px; transform:translateX(-50%); }
+/* ---------- 底部对话（实机式全宽） ---------- */
+.dialog{
+  position:absolute; left:0; right:0; bottom:0; z-index:8;
+  background:linear-gradient(180deg, rgba(2,5,8,0) 0%, rgba(2,5,8,.42) 20%, rgba(2,5,8,.84) 56%, rgba(2,5,8,.96) 100%);
+}
+.dialog::before{
+  content:''; position:absolute; left:0; right:0; top:0; height:1px;
+  background:linear-gradient(90deg, rgba(232,237,240,0) 0%, rgba(232,237,240,.24) 18%, rgba(232,237,240,.1) 70%, rgba(232,237,240,0) 100%);
+}
+.dialog-inner{
+  display:grid;
+  grid-template-columns:96px 1px minmax(0,1fr) auto;
+  column-gap:18px;
+  align-items:start;
+  padding:24px 5.5% 30px 22%;
+  min-height:136px;
+}
 .speaker-tag{
-  position:absolute; left:24px; top:-13px; z-index:2;
-  height:26px; padding:0 12px;
-  display:inline-flex; align-items:center; gap:8px;
-  background:rgba(4,14,18,.94);
-  border:1px solid var(--line);
-  border-radius:2px;
-  font-size:11.5px; font-weight:500; letter-spacing:3px; color:var(--mint);
-  white-space:nowrap;
-  backdrop-filter:blur(8px);
+  position:static; transform:none;
+  align-self:start; padding-top:4px;
+  height:auto; min-width:0;
+  background:none; border:0; clip-path:none; filter:none;
+  font-size:23px; font-weight:700; letter-spacing:.1em; line-height:1.3;
+  color:#fff; text-align:left; white-space:nowrap;
+  text-shadow:0 1px 5px rgba(0,0,0,.85);
 }
-.speaker-tag::before{
-  content:''; width:5px; height:5px; border-radius:50%;
-  background:var(--mint); box-shadow:0 0 8px var(--mint-2);
+.speaker-tag.narr{ color:#aebbc3; letter-spacing:.2em; font-weight:500; }
+.dialog-divider{
+  align-self:stretch; width:1px; margin:3px 0 12px;
+  background:linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,.16) 75%, rgba(255,255,255,.03));
 }
-.speaker-tag.narr{ color:var(--muted); border-color:var(--line-2); }
-.speaker-tag.narr::before{ background:var(--faint); box-shadow:none; }
 .dialog-box{
-  position:relative;
-  height:124px; min-height:124px; padding:20px 28px 22px;
-  background:linear-gradient(180deg, rgba(7,20,26,.74), rgba(4,12,16,.9));
-  border:1px solid var(--line);
-  border-radius:3px;
-  backdrop-filter:blur(12px);
-  box-shadow:0 24px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05);
+  position:relative; min-height:74px; max-height:92px;
+  padding:0; background:none; border:0; box-shadow:none; backdrop-filter:none;
   overflow:hidden;
 }
-.dialog-box::before{
-  content:''; position:absolute; left:0; right:0; top:0; height:1px;
-  background:linear-gradient(90deg, var(--mint), rgba(95,224,200,.1) 52%, transparent 100%);
-}
-.dialog-box::after{
-  content:'“'; position:absolute; right:18px; top:-10px;
-  font-family:Georgia,"Times New Roman",serif;
-  font-size:82px; line-height:1; color:rgba(154,206,214,.07);
-  pointer-events:none;
-}
-.line,.dialog-tools{ position:relative; z-index:1; }
 .line{
-  font-size:16.5px; line-height:1.7; color:#dcebed; font-weight:400;
-  letter-spacing:.04em; text-shadow:0 1px 3px rgba(0,0,0,.6);
-  min-height:30px; max-height:82px;
+  font-size:18px; line-height:1.7; color:#eef2f5; font-weight:400;
+  letter-spacing:.04em; text-shadow:0 1px 4px rgba(0,0,0,.85);
+  min-height:28px; max-height:92px;
   overflow-y:auto; overflow-x:hidden;
   scrollbar-width:none; -ms-overflow-style:none;
-  scroll-behavior:smooth; padding-right:2px;
+  scroll-behavior:smooth;
 }
 .line::-webkit-scrollbar{ width:0; height:0; display:none; }
-.dialog-tools{ position:absolute; right:14px; bottom:4px; display:flex; align-items:center; gap:2px; }
+.dialog-tools{
+  align-self:end; display:flex; align-items:center; gap:2px;
+  padding-bottom:2px;
+}
 .ff{
   border:none; background:transparent; cursor:pointer;
   display:flex; align-items:center; gap:0; padding:2px 5px;
@@ -680,9 +679,12 @@ body{
 
     <!-- 底部对话框 -->
     <div class="dialog" id="dialog">
-      <div class="speaker-tag" id="speakerTag"><span>旁白</span></div>
-      <div class="dialog-box">
-        <div class="line" id="line"></div>
+      <div class="dialog-inner">
+        <div class="speaker-tag" id="speakerTag"><span>旁白</span></div>
+        <div class="dialog-divider"></div>
+        <div class="dialog-box">
+          <div class="line" id="line"></div>
+        </div>
         <div class="dialog-tools">
           <button class="ff prev" id="prevBtn" title="上一句"><span>‹</span></button>
           <button class="ff" id="ffBtn" title="继续"><span class="c1">›</span><span class="c2">›</span></button>
@@ -1806,9 +1808,9 @@ body{
     return segs[Math.max(0, Math.min(segIdx, segs.length - 1))];
   }
   function fitLine(text) {
-    var maxFs = 16.5, minFs = 12;
-    var lineW = el.line.clientWidth || 584;
-    var availH = 82;
+    var maxFs = 18, minFs = 12;
+    var lineW = el.line.clientWidth || 540;
+    var availH = 92;
     var fs = maxFs;
     while (fs > minFs) {
       var cpl = Math.max(8, Math.floor(lineW / fs));
