@@ -1,0 +1,2314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>明日方舟 · 剧情对话界面</title>
+<style>
+:root{
+  --font-cn:"HarmonyOS Sans SC","Noto Sans SC","Source Han Sans SC","Microsoft YaHei","PingFang SC",sans-serif;
+  --bg:#030b10;
+  --ink:#e8f3f4;
+  --muted:#8ba6ae;
+  --faint:#5c747d;
+  --line:rgba(154,206,214,.24);
+  --line-2:rgba(154,206,214,.11);
+  --mint:#5fe0c8;
+  --mint-2:rgba(95,224,200,.55);
+  --mint-soft:rgba(95,224,200,.08);
+  --amber:#e8b57a;
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+html, body{
+  margin:0; padding:0;
+  background:#02080b;
+  font-family:var(--font-cn);
+  -webkit-font-smoothing:antialiased;
+  -webkit-text-size-adjust:100%;
+}
+body{
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(120% 120% at 50% 0%, #07161c 0%, #030b10 52%, #020609 100%);
+}
+#viewport{
+  position:relative; width:100%; max-width:1440px; flex:none;
+  aspect-ratio:16 / 9; overflow:hidden; background:#030b10;
+}
+.stage{
+  position:absolute; left:0; top:0;
+  width:1024px; height:576px;
+  transform-origin:top left; overflow:hidden;
+  background:#030b10;
+  box-shadow:0 0 120px rgba(95,224,200,.05), 0 40px 120px rgba(0,0,0,.85);
+  user-select:none;
+}
+
+/* ---------- 背景 ---------- */
+.bg{
+  position:absolute; inset:0;
+  background:#030b10 center / cover no-repeat;
+  filter:brightness(.74) contrast(1.06) saturate(.72);
+  transform:scale(1.03);
+  transition:background-image .45s ease;
+}
+.bg-tint{
+  position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(110% 90% at 50% 34%, rgba(6,32,38,.06) 0%, rgba(3,11,16,.5) 100%),
+    linear-gradient(180deg, rgba(3,10,14,.55) 0%, rgba(3,10,14,.06) 30%, rgba(3,10,14,.26) 70%, rgba(2,7,10,.92) 100%);
+}
+.scanlines{
+  position:absolute; inset:0; z-index:2; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(154,206,214,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(154,206,214,.05) 1px, transparent 1px);
+  background-size:72px 72px;
+  -webkit-mask-image:radial-gradient(120% 100% at 50% 40%, #000 18%, transparent 82%);
+  mask-image:radial-gradient(120% 100% at 50% 40%, #000 18%, transparent 82%);
+}
+.vignette{
+  position:absolute; inset:0; z-index:3; pointer-events:none;
+  background:radial-gradient(120% 92% at 50% 40%, rgba(0,0,0,0) 58%, rgba(0,0,0,.46) 100%);
+}
+
+/* ---------- 立绘 ---------- */
+.cast{ position:absolute; inset:0; z-index:1; }
+.slot{
+  position:absolute; bottom:0; height:100%; width:34%;
+  opacity:1; cursor:default;
+  transition:left .5s cubic-bezier(.22,.61,.36,1), width .5s cubic-bezier(.22,.61,.36,1), filter .35s ease, transform .35s ease, opacity .3s ease;
+  will-change:left, filter, transform;
+}
+@keyframes castEnterLeft{
+  from{ transform:translateX(56px); opacity:0; }
+  to{ transform:translateX(0); opacity:1; }
+}
+@keyframes castExitRight{
+  from{ transform:translateX(0); opacity:1; }
+  to{ transform:translateX(56px); opacity:0; }
+}
+.slot.enter-left{ animation:castEnterLeft .42s cubic-bezier(.22,.61,.36,1) both; }
+.slot.exit-right{ animation:castExitRight .36s cubic-bezier(.22,.61,.36,1) forwards; pointer-events:none; }
+.slot.left{ left:0; z-index:2; }
+.slot.center{ left:33%; width:34%; z-index:4; }
+.slot.right{ left:66%; z-index:3; }
+.slot.left.two{ left:14%; }
+.slot.right.two{ left:52%; }
+.slot img{
+  position:absolute; bottom:-24px; left:50%; transform:translateX(-50%);
+  height:460px; width:auto; max-width:none; z-index:1;
+  filter:drop-shadow(0 18px 32px rgba(0,0,0,.78)) drop-shadow(0 0 28px rgba(95,224,200,.06));
+  opacity:1;
+  transition:filter .35s ease, transform .35s ease;
+  -webkit-user-drag:none;
+}
+.slot.center img{ height:474px; }
+.slot.dim{ filter:brightness(.5) saturate(.55); opacity:1; }
+.slot.dim img{ opacity:1; }
+.slot.active{ filter:brightness(1.04) saturate(1.02); opacity:1; }
+.slot.active img{ transform:translateX(-50%) translateY(-3px) scale(1.012); }
+.slot.speaking{ z-index:30; }
+.bottom-shade{
+  position:absolute; left:0; right:0; bottom:0; height:230px; z-index:4; pointer-events:none;
+  background:linear-gradient(180deg, rgba(2,7,10,0) 0%, rgba(2,7,10,.25) 45%, rgba(2,7,10,.72) 100%);
+}
+
+/* ---------- 左上 HUD ---------- */
+.hud-left{
+  position:absolute; top:22px; left:22px; z-index:10;
+  display:flex; align-items:center; gap:14px;
+  padding:11px 18px 11px 16px;
+  background:linear-gradient(180deg, rgba(9,26,32,.78), rgba(5,15,20,.66));
+  border:1px solid var(--line);
+  border-radius:2px;
+  backdrop-filter:blur(12px);
+  box-shadow:0 16px 36px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.hud-left::before{
+  content:''; position:absolute; left:0; top:0; bottom:0; width:1px;
+  background:linear-gradient(180deg, var(--mint), rgba(95,224,200,.04));
+  box-shadow:0 0 12px rgba(95,224,200,.35);
+}
+.hud-time{
+  font-family:"Bahnschrift","DIN Alternate","Arial Narrow",sans-serif;
+  font-size:30px; font-weight:300; line-height:1; letter-spacing:.04em; color:#fff;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 2px 10px rgba(0,0,0,.8);
+}
+.hud-info{
+  display:flex; flex-direction:column; gap:4px;
+  padding-left:14px; border-left:1px solid var(--line-2);
+}
+.hud-info > div{ display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
+.hud-info > div::before{
+  font-family:"Consolas","SFMono-Regular",monospace;
+  font-size:8px; letter-spacing:.16em; color:var(--faint); width:28px; flex:none;
+}
+.hud-date::before{ content:'DATE'; }
+.hud-place::before{ content:'LOC'; }
+.hud-weather::before{ content:'WX'; }
+.hud-date,.hud-place,.hud-weather{
+  font-size:10.5px; line-height:1.2; letter-spacing:.06em;
+  text-shadow:0 1px 3px rgba(0,0,0,.7);
+}
+.hud-date{ color:#9db2b9; }
+.hud-place{ color:#a8e3da; }
+.hud-weather{ color:#6f858c; }
+
+/* ---------- 右上按钮 ---------- */
+.top-actions{
+  position:absolute; top:24px; right:22px; z-index:10;
+  display:flex; align-items:center; gap:20px;
+}
+.pill{
+  position:relative; height:30px; padding:0;
+  display:flex; align-items:center; gap:9px;
+  border:0; background:none; color:var(--muted);
+  font:inherit; font-size:11.5px; letter-spacing:3px;
+  cursor:pointer;
+}
+.pill::after{
+  content:''; position:absolute; left:0; right:0; bottom:-6px; height:1px;
+  background:var(--line);
+  transition:background .18s, box-shadow .18s;
+}
+.pill .ico{
+  width:24px; height:24px; flex:none; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--line); color:var(--muted);
+  transition:border-color .18s, color .18s, box-shadow .18s;
+}
+.pill .ico svg{ width:11px; height:11px; display:block; }
+.pill .lbl{ font-weight:500; text-shadow:0 1px 3px rgba(0,0,0,.8); }
+.pill:hover{ color:var(--ink); }
+.pill:hover .ico{ border-color:var(--mint-2); color:var(--mint); box-shadow:0 0 14px rgba(95,224,200,.16); }
+.pill:hover::after{ background:var(--mint-2); box-shadow:0 0 10px rgba(95,224,200,.4); }
+.pill.off{ opacity:.4; }
+
+/* ---------- 底部对话框 ---------- */
+.dialog{ position:absolute; left:50%; bottom:36px; z-index:8; width:640px; transform:translateX(-50%); }
+.speaker-tag{
+  position:absolute; left:24px; top:-13px; z-index:2;
+  height:26px; padding:0 12px;
+  display:inline-flex; align-items:center; gap:8px;
+  background:rgba(4,14,18,.94);
+  border:1px solid var(--line);
+  border-radius:2px;
+  font-size:11.5px; font-weight:500; letter-spacing:3px; color:var(--mint);
+  white-space:nowrap;
+  backdrop-filter:blur(8px);
+}
+.speaker-tag::before{
+  content:''; width:5px; height:5px; border-radius:50%;
+  background:var(--mint); box-shadow:0 0 8px var(--mint-2);
+}
+.speaker-tag.narr{ color:var(--muted); border-color:var(--line-2); }
+.speaker-tag.narr::before{ background:var(--faint); box-shadow:none; }
+.dialog-box{
+  position:relative;
+  height:124px; min-height:124px; padding:20px 28px 22px;
+  background:linear-gradient(180deg, rgba(7,20,26,.74), rgba(4,12,16,.9));
+  border:1px solid var(--line);
+  border-radius:3px;
+  backdrop-filter:blur(12px);
+  box-shadow:0 24px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05);
+  overflow:hidden;
+}
+.dialog-box::before{
+  content:''; position:absolute; left:0; right:0; top:0; height:1px;
+  background:linear-gradient(90deg, var(--mint), rgba(95,224,200,.1) 52%, transparent 100%);
+}
+.dialog-box::after{
+  content:'“'; position:absolute; right:18px; top:-10px;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:82px; line-height:1; color:rgba(154,206,214,.07);
+  pointer-events:none;
+}
+.line,.dialog-tools{ position:relative; z-index:1; }
+.line{
+  font-size:16.5px; line-height:1.7; color:#dcebed; font-weight:400;
+  letter-spacing:.04em; text-shadow:0 1px 3px rgba(0,0,0,.6);
+  min-height:30px; max-height:82px;
+  overflow-y:auto; overflow-x:hidden;
+  scrollbar-width:none; -ms-overflow-style:none;
+  scroll-behavior:smooth; padding-right:2px;
+}
+.line::-webkit-scrollbar{ width:0; height:0; display:none; }
+.dialog-tools{ position:absolute; right:14px; bottom:4px; display:flex; align-items:center; gap:2px; }
+.ff{
+  border:none; background:transparent; cursor:pointer;
+  display:flex; align-items:center; gap:0; padding:2px 5px;
+}
+.ff span{ font-size:26px; line-height:1; font-weight:400; color:var(--mint); opacity:.34; }
+.ff .c1{ animation:chevPulse 1.15s ease-in-out infinite; }
+.ff .c2{ animation:chevPulse 1.15s ease-in-out infinite .34s; }
+.ff:hover span{ animation-play-state:paused; opacity:1; }
+.ff.prev span{ font-size:23px; animation:none; color:var(--muted); opacity:.4; }
+.ff.prev:hover span{ opacity:1; color:var(--ink); }
+.ff.dim{ opacity:.16; }
+@keyframes chevPulse{ 0%,100%{ opacity:.24; } 50%{ opacity:1; } }
+
+/* ================= 浮窗 ================= */
+.overlay{
+  position:absolute; inset:0; z-index:30;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(2,8,11,.72); backdrop-filter:blur(5px);
+}
+.overlay.show{ display:flex; }
+.modal{
+  position:relative; width:900px; height:480px;
+  display:flex; flex-direction:column;
+  background:linear-gradient(180deg, rgba(9,25,31,.95), rgba(4,13,17,.98));
+  border:1px solid var(--line);
+  border-radius:4px;
+  box-shadow:0 40px 100px rgba(0,0,0,.72), inset 0 1px 0 rgba(255,255,255,.05);
+  color:#dfeaec; overflow:hidden;
+}
+.modal::before{
+  content:''; position:absolute; left:26px; right:26px; top:0; height:1px; z-index:3;
+  background:linear-gradient(90deg, transparent, var(--mint) 30%, var(--mint) 70%, transparent);
+  opacity:.6;
+}
+.modal::after{
+  content:''; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background-image:linear-gradient(rgba(154,206,214,.022) 1px, transparent 1px);
+  background-size:100% 34px;
+}
+.modal.wide{ width:960px; height:552px; }
+.modal.wide .modal-body{ padding:16px 26px; }
+.modal-head{
+  position:relative; z-index:2; flex:none; height:70px; padding:0 26px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--line-2);
+  background:linear-gradient(90deg, rgba(95,224,200,.06), transparent 55%);
+}
+.modal-head-left{ display:flex; align-items:center; gap:16px; }
+.modal-head-text{ display:flex; flex-direction:column; gap:4px; }
+.modal-index{
+  font-family:"Bahnschrift","DIN Alternate","Arial Narrow",sans-serif;
+  font-size:38px; font-weight:200; line-height:1; letter-spacing:.04em;
+  color:var(--mint); opacity:.85;
+  font-variant-numeric:tabular-nums;
+}
+.modal-title{
+  font-size:21px; font-weight:400; letter-spacing:7px; color:#fff;
+  font-family:var(--font-cn);
+}
+.modal-title small{
+  font-size:9px; letter-spacing:3px; color:var(--mint); margin-left:10px;
+  font-weight:400; opacity:.65;
+  font-family:"Consolas","SFMono-Regular",monospace;
+}
+.modal-sub{
+  font-family:"Consolas","SFMono-Regular",monospace;
+  font-size:9px; letter-spacing:.14em; color:var(--faint);
+}
+.modal-close{
+  position:relative; z-index:3;
+  width:30px; height:30px; cursor:pointer; font-size:13px;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--line); border-radius:50%; background:transparent; color:var(--muted);
+  transition:border-color .2s, color .2s, background .2s;
+}
+.modal-close:hover{ border-color:var(--mint); color:var(--mint); background:var(--mint-soft); }
+.modal-body{ position:relative; z-index:2; flex:1; overflow-y:auto; padding:20px 26px; }
+.modal-body::-webkit-scrollbar{ width:5px; }
+.modal-body::-webkit-scrollbar-thumb{ background:rgba(95,224,200,.3); border-radius:2px; }
+.modal-body::-webkit-scrollbar-track{ background:rgba(255,255,255,.03); }
+.modal-foot{
+  position:relative; z-index:2; flex:none; height:30px; padding:0 26px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-top:1px solid var(--line-2);
+  font-family:"Consolas","SFMono-Regular",monospace;
+  font-size:9px; letter-spacing:.12em; color:var(--faint);
+}
+.modal-wm{
+  position:absolute; right:20px; bottom:6px; z-index:0;
+  font-family:"Bahnschrift","Impact","Arial Narrow",sans-serif;
+  font-size:120px; font-weight:200; letter-spacing:6px; line-height:1;
+  color:rgba(154,206,214,.03); pointer-events:none;
+}
+.modal-deco{ position:absolute; width:22px; height:22px; border:0 solid var(--mint-2); z-index:3; pointer-events:none; }
+.modal-deco.tl{ top:8px; left:8px; border-top-width:1px; border-left-width:1px; }
+.modal-deco.br{ bottom:8px; right:8px; border-bottom-width:1px; border-right-width:1px; }
+
+/* 回顾 */
+.hist-item{
+  position:relative; display:flex; gap:16px;
+  padding:13px 8px 13px 4px;
+  border:0; border-bottom:1px solid var(--line-2);
+  background:none; cursor:pointer;
+  transition:background .16s;
+}
+.hist-item:hover{ background:rgba(255,255,255,.02); }
+.hist-item.cur{ background:linear-gradient(90deg, rgba(95,224,200,.06), transparent 70%); border-color:transparent; }
+.hist-item.cur::before{
+  content:''; position:absolute; left:0; top:6px; bottom:6px; width:1px;
+  background:var(--mint); box-shadow:0 0 10px rgba(95,224,200,.5);
+}
+.hist-item.cur::after{
+  content:'CURRENT'; position:absolute; right:12px; top:14px;
+  font-family:"Consolas",monospace; font-size:8px; letter-spacing:1.6px; color:var(--mint);
+  border:1px solid rgba(95,224,200,.4); border-radius:2px; padding:1px 6px;
+}
+.hist-no{
+  flex:none; width:26px; padding-top:1px;
+  font-family:"Consolas","SFMono-Regular",monospace;
+  font-size:10.5px; letter-spacing:.08em; color:var(--faint);
+  font-variant-numeric:tabular-nums;
+}
+.hist-item.cur .hist-no{ color:var(--mint); }
+.hist-main{ flex:1; min-width:0; }
+.hist-name{ font-size:11px; letter-spacing:2.5px; color:var(--mint); margin-bottom:5px; font-weight:500; }
+.hist-name.narr{ color:var(--faint); }
+.hist-text{ font-size:13.5px; line-height:1.8; color:#c9dbde; }
+.empty-tip{ font-size:12px; line-height:1.9; color:var(--faint); padding:18px 6px; }
+
+/* 状态 */
+.tabs{
+  flex:none; display:flex; gap:28px; padding:0 26px; height:50px; align-items:stretch;
+  border-bottom:1px solid var(--line-2);
+  background:none; overflow-x:auto;
+}
+.tab-btn{
+  position:relative; height:auto; padding:0; display:flex; align-items:center;
+  font:inherit; font-size:11.5px; font-weight:500; letter-spacing:2.5px; color:var(--faint);
+  background:none; border:0;
+  cursor:pointer; transition:color .2s; white-space:nowrap;
+}
+.tab-btn::after{
+  content:''; position:absolute; left:0; right:0; bottom:0; height:1px;
+  background:transparent; transition:background .2s, box-shadow .2s;
+}
+.tab-btn:hover{ color:var(--ink); background:none; }
+.tab-btn.active{ color:var(--mint); background:none; border:0; box-shadow:none; }
+.tab-btn.active::after{ background:var(--mint); box-shadow:0 0 12px rgba(95,224,200,.5); }
+.pane{ display:none; }
+.pane.show{ display:block; }
+.cols2{ display:grid; grid-template-columns:1fr 1fr; gap:0 30px; align-items:start; }
+.sec{ margin-bottom:20px; }
+.sec-title{
+  display:flex; align-items:center; gap:10px;
+  font-size:11px; font-weight:500; letter-spacing:3px; color:var(--muted);
+  border:0; padding:0; margin-bottom:12px;
+}
+.sec-title::before{ content:''; width:16px; height:1px; background:var(--mint); }
+.kv{
+  display:flex; font-size:12.5px; line-height:1.6; color:#c7d9dc;
+  background:none; border:0; border-bottom:1px solid var(--line-2);
+  padding:9px 2px; margin:0;
+}
+.kv b{ min-width:56px; color:var(--faint); font-weight:400; font-size:10.5px; letter-spacing:1.5px; margin-right:10px; padding-top:1px; }
+
+.tags{ display:flex; flex-wrap:wrap; gap:8px; }
+.tag{
+  position:relative; cursor:pointer;
+  padding:7px 14px 7px 26px; font-size:11.5px; font-weight:500; letter-spacing:1px;
+  color:var(--tc); border:1px solid var(--tg); border-radius:2px;
+  background:rgba(255,255,255,.015);
+  transition:background .18s, box-shadow .2s;
+}
+.tag::before{
+  content:''; position:absolute; left:11px; top:50%;
+  width:5px; height:5px; border-radius:50%; transform:translateY(-50%);
+  background:var(--tc); box-shadow:0 0 8px var(--tg);
+}
+.tag:hover{ background:rgba(255,255,255,.04); box-shadow:0 0 14px var(--tg); }
+.tag.sel{ box-shadow:inset 0 0 0 1px rgba(255,255,255,.5), 0 0 16px var(--tg); }
+
+.r1{ --tc:#b9cbd1; --tg:rgba(185,203,209,.3); }
+.r2{ --tc:#7fd6a8; --tg:rgba(127,214,168,.45); }
+.r3{ --tc:#7fb8e6; --tg:rgba(127,184,230,.45); }
+.r4{ --tc:#e8b57a; --tg:rgba(232,181,122,.5); }
+
+.person{
+  background:rgba(255,255,255,.012);
+  border:1px solid var(--line-2); border-radius:3px;
+  margin-bottom:8px; overflow:hidden;
+}
+.person-head{ display:flex; align-items:center; gap:12px; padding:13px 16px; cursor:pointer; }
+.person-head:hover{ background:rgba(95,224,200,.03); }
+.pinfo{ display:flex; flex-direction:column; gap:4px; }
+.pname{ font-size:14px; font-weight:500; color:#eef6f7; letter-spacing:2px; }
+.pmeta{ font-family:"Consolas","SFMono-Regular",monospace; font-size:9.5px; letter-spacing:.1em; color:var(--faint); }
+.pchev{ margin-left:auto; position:relative; width:11px; height:11px; flex:none; }
+.pchev::before,.pchev::after{ content:''; position:absolute; background:var(--mint); opacity:.75; }
+.pchev::before{ left:0; right:0; top:5px; height:1px; }
+.pchev::after{ top:0; bottom:0; left:5px; width:1px; transition:transform .22s, opacity .22s; }
+.person.open .pchev::after{ transform:scaleY(0); opacity:0; }
+.person-body{
+  display:none; position:relative; overflow:hidden;
+  padding:14px 16px 16px; font-size:12.5px; line-height:1.7; color:#c7d9dc;
+  border-top:1px solid var(--line-2); background:rgba(95,224,200,.02);
+}
+.person.open .person-body{ display:block; }
+.person-body::after{
+  content:attr(data-name); position:absolute; right:10px; bottom:-14px;
+  font-family:"Bahnschrift","Impact",sans-serif;
+  font-size:58px; font-weight:200; color:rgba(154,206,214,.035); pointer-events:none;
+}
+.pbody-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; position:relative; z-index:1; }
+.pcell{ background:none; border:1px solid var(--line-2); border-radius:2px; padding:8px 10px; }
+.plabel{ display:block; font-family:"Consolas",monospace; font-size:8.5px; letter-spacing:.12em; color:var(--faint); margin-bottom:4px; }
+.pval{ font-size:12px; color:#dfeaec; }
+.ptrust{ display:flex; align-items:center; gap:10px; margin-top:12px; position:relative; z-index:1; }
+.ptrust .plabel{ margin:0; white-space:nowrap; }
+.pbar{ flex:1; height:2px; background:rgba(255,255,255,.07); border:0; }
+.pbar i{ display:block; height:100%; background:linear-gradient(90deg, rgba(95,224,200,.18), var(--mint)); box-shadow:0 0 10px rgba(95,224,200,.35); }
+.ptrust b{ color:var(--mint); font-size:11px; font-weight:400; font-family:"Consolas",monospace; }
+.ppose{ margin-top:12px; position:relative; z-index:1; }
+.ppose p{ margin:0; font-size:12px; line-height:1.7; color:#b6c9ce; }
+.pchips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; position:relative; z-index:1; }
+.pchip{
+  font-size:9.5px; letter-spacing:1px; color:var(--mint);
+  padding:2px 9px; background:rgba(95,224,200,.05);
+  border:1px solid rgba(95,224,200,.24); border-radius:2px;
+}
+.person.open{ background:rgba(95,224,200,.025); }
+.person.open .pname{ color:#fff; }
+
+.rel{ padding:11px 0; border-bottom:1px solid var(--line-2); }
+.rel:last-child{ border-bottom:none; }
+.rel-top{ display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+.rname{ color:#e3edef; font-weight:500; letter-spacing:1.5px; min-width:48px; }
+.rtype{ font-family:"Consolas",monospace; color:var(--faint); font-size:10px; flex:1; letter-spacing:.06em; }
+.rgrade{ font-family:"Consolas",monospace; font-size:9px; letter-spacing:1px; color:var(--mint); border:1px solid rgba(95,224,200,.3); border-radius:2px; padding:1px 6px; }
+.rval{ color:var(--mint); font-size:11px; font-family:"Consolas",monospace; min-width:24px; text-align:right; }
+.bar{ height:3px; background:rgba(255,255,255,.07); border:0; position:relative; }
+.bar i{ position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg, rgba(95,224,200,.15), var(--mint)); box-shadow:0 0 10px rgba(95,224,200,.3); }
+.reval{ margin-top:7px; font-size:11px; line-height:1.65; color:#93a8ae; border-left:1px solid rgba(95,224,200,.25); padding-left:9px; }
+
+.item-filter{ display:flex; flex-wrap:wrap; gap:18px; margin-bottom:14px; }
+.if-btn{
+  position:relative; padding:2px 0; cursor:pointer; font:inherit;
+  font-size:10.5px; letter-spacing:2px; color:var(--faint);
+  background:none; border:0; border-bottom:1px solid transparent;
+  transition:color .16s, border-color .16s;
+}
+.if-btn:hover{ color:var(--ink); border-bottom-color:var(--line); }
+.if-btn.active{ color:var(--mint); border-bottom-color:var(--mint); background:none; box-shadow:none; }
+
+.items{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; }
+.item{
+  position:relative; display:grid;
+  grid-template-columns:auto 1fr auto; grid-template-rows:auto auto;
+  align-items:center; gap:3px 10px; padding:12px 14px;
+  background:rgba(255,255,255,.012);
+  border:1px solid var(--line-2); border-radius:3px;
+  transition:border-color .16s, background .16s;
+}
+.item:hover{ border-color:var(--tg, var(--line)); background:rgba(95,224,200,.03); }
+.iico{
+  grid-row:span 2; width:30px; height:30px; flex:none;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--tc, var(--muted)); background:none;
+  border:1px solid var(--tg, var(--line)); border-radius:50%;
+}
+.iico svg{ width:15px; height:15px; }
+.imain{ display:flex; flex-direction:column; min-width:0; gap:2px; }
+.iname{ font-size:12.5px; font-weight:500; color:#e6eff1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:.5px; }
+.itype{ font-family:"Consolas",monospace; font-size:9px; letter-spacing:.1em; color:var(--faint); }
+.icount{ color:var(--tc, var(--mint)); font-size:11px; font-weight:400; font-family:"Consolas",monospace; }
+.idesc{
+  grid-column:2 / -1; margin-top:6px; padding-top:6px;
+  border-top:1px solid var(--line-2);
+  font-size:10.5px; line-height:1.6; color:#8ea3a9;
+}
+
+/* 大事记 */
+.tl{ position:relative; padding:2px 0; font-size:13px; line-height:1.7; color:#c7d9dc; }
+.tl::before{ content:''; position:absolute; left:108px; top:10px; bottom:10px; width:1px; background:linear-gradient(180deg, var(--mint), rgba(95,224,200,.04)); }
+.tl-item{ position:relative; display:flex; gap:16px; padding-bottom:18px; }
+.tl-item:last-child{ padding-bottom:0; }
+.tl-date{ width:100px; flex:none; padding-top:4px; text-align:right; }
+.tl-date b{ display:block; font-family:"Consolas",monospace; font-size:9px; font-weight:400; letter-spacing:.06em; color:var(--faint); font-variant-numeric:tabular-nums; }
+.tl-date span{ display:block; margin-top:3px; font-family:"Consolas",monospace; font-size:11px; font-weight:400; letter-spacing:.06em; color:var(--mint); font-variant-numeric:tabular-nums; }
+.tl-dot{ position:absolute; left:104px; top:15px; width:8px; height:8px; z-index:1; transform:rotate(45deg); background:var(--mint); border:0; box-shadow:0 0 0 4px rgba(95,224,200,.08); }
+.tl-item:first-child .tl-dot{ box-shadow:0 0 0 4px rgba(95,224,200,.14), 0 0 12px rgba(95,224,200,.6); }
+.tl-card{
+  flex:1; min-width:0; padding:1px 0 1px 18px;
+  border:0; border-left:1px solid var(--line-2); background:none;
+}
+.tl-tag{ display:inline-block; margin-bottom:4px; font-family:"Consolas",monospace; font-size:8.5px; letter-spacing:.14em; color:var(--faint); }
+.tl-card p{ margin:0; font-size:12.5px; line-height:1.7; color:#c6d8db; }
+
+.tag-pop{
+  position:absolute; z-index:40; width:280px; display:none; padding:14px 16px;
+  background:rgba(5,17,22,.98);
+  border:1px solid var(--mint-2); border-radius:3px;
+  box-shadow:0 20px 50px rgba(0,0,0,.8);
+  backdrop-filter:blur(10px);
+}
+.tag-pop.show{ display:block; }
+.tp-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.tp-name{ font-size:13px; font-weight:500; letter-spacing:1px; color:#fff; }
+.tp-rarity{ font-family:"Consolas",monospace; font-size:9px; letter-spacing:1px; padding:1px 6px; border:1px solid rgba(95,224,200,.4); color:var(--mint); border-radius:2px; }
+.tp-desc{ font-size:12px; line-height:1.7; color:#b6c9ce; }
+
+.adv-head{ display:flex; align-items:baseline; gap:12px; margin-bottom:10px; }
+.adv-count{ font-family:"Consolas",monospace; font-size:9.5px; letter-spacing:.1em; color:var(--mint); }
+.adv-hint{ font-family:"Consolas",monospace; font-size:9px; letter-spacing:.06em; color:var(--faint); }
+.adv-list{ display:flex; flex-direction:column; }
+.adv-item{
+  position:relative; display:flex; align-items:center; gap:14px; width:100%; text-align:left;
+  padding:14px 46px 14px 0; cursor:pointer; font:inherit; font-size:12.5px; line-height:1.6; color:#d5e4e6;
+  background:none; border:0; border-bottom:1px solid var(--line-2);
+  transition:background .16s, border-color .16s;
+}
+.adv-item::after{ content:'›'; position:absolute; right:14px; top:50%; transform:translateY(-50%); font-size:18px; line-height:1; color:var(--mint); opacity:.5; transition:opacity .16s, right .16s; }
+.adv-item:hover{ background:rgba(95,224,200,.03); border-color:var(--line); }
+.adv-item:hover::after{ opacity:1; right:10px; }
+.adv-item.empty{ opacity:.35; cursor:default; }
+.adv-no{
+  flex:none; width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+  font-family:"Consolas",monospace; font-size:10px; font-weight:400; letter-spacing:.04em; color:var(--mint);
+  background:none; border:1px solid var(--line); border-radius:50%;
+}
+.adv-item.primary .adv-no{ color:#041014; background:var(--mint); border-color:var(--mint); }
+.adv-body{ flex:1; min-width:0; display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.adv-tx{ flex:1; min-width:0; }
+.adv-badge{ flex:none; font-family:"Consolas",monospace; font-size:8.5px; letter-spacing:.12em; color:var(--mint); border:1px solid rgba(95,224,200,.35); padding:1px 6px; background:rgba(95,224,200,.06); border-radius:2px; }
+.adv-custom{ display:flex; gap:10px; margin-top:18px; }
+.adv-input{ flex:1; height:38px; padding:0 12px; outline:none; font:inherit; font-size:12.5px; color:#e2eef0; background:rgba(255,255,255,.02); border:1px solid var(--line); border-radius:2px; }
+.adv-input:focus{ border-color:var(--mint); background:rgba(95,224,200,.03); box-shadow:0 0 16px rgba(95,224,200,.12); }
+.adv-send{ flex:none; height:38px; padding:0 22px; cursor:pointer; font:inherit; font-size:12px; letter-spacing:2px; color:#041014; background:var(--mint); border:1px solid var(--mint); border-radius:2px; font-weight:500; }
+.adv-send:hover{ filter:brightness(1.08); box-shadow:0 0 18px rgba(95,224,200,.25); }
+
+/* 音效 */
+.cfg-section{ margin-bottom:18px; }
+.cfg-section-title{
+  display:flex; align-items:center; gap:9px;
+  font-size:11px; font-weight:500; letter-spacing:3px; color:var(--muted);
+  border-bottom:1px solid var(--line-2); padding-bottom:8px; margin-bottom:12px;
+}
+.cfg-section-title .num{
+  width:20px; height:20px; border:1px solid var(--mint);
+  display:inline-flex; align-items:center; justify-content:center;
+  font-family:"Consolas",monospace; font-size:8.5px; color:var(--mint); border-radius:2px;
+}
+.cfg-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.cfg-field{ display:flex; flex-direction:column; gap:6px; }
+.cfg-label{ font-size:11px; letter-spacing:1px; color:var(--muted); }
+.cfg-input{
+  width:100%; height:36px; padding:0 10px;
+  background:rgba(255,255,255,.02); border:1px solid var(--line); border-radius:2px;
+  color:#e8f3f4; font:inherit; font-size:12px; outline:none;
+}
+.cfg-input:focus{ border-color:var(--mint); box-shadow:0 0 14px rgba(95,224,200,.12); }
+.cfg-select{
+  width:230px; height:36px; padding:0 10px;
+  background:rgba(255,255,255,.02); border:1px solid var(--line); border-radius:2px;
+  color:#e8f3f4; font:inherit; font-size:12px; outline:none; cursor:pointer;
+}
+.cfg-select:focus{ border-color:var(--mint); box-shadow:0 0 14px rgba(95,224,200,.12); }
+.cfg-select option{ background:#0b1a20; color:#e8f3f4; }
+.cfg-btn{
+  border:1px solid var(--line); background:none; border-radius:2px;
+  color:#e8f3f4; font:inherit; font-size:11.5px; font-weight:500; letter-spacing:2px;
+  padding:8px 16px; cursor:pointer;
+  transition:border-color .16s, background .16s;
+}
+.cfg-btn:hover{ border-color:var(--mint); background:rgba(95,224,200,.05); }
+.cfg-hint{ margin-top:12px; font-size:10.5px; line-height:1.9; color:var(--faint); }
+.cfg-hint b{ color:#c1d4d8; font-weight:500; }
+
+.toast{
+  position:absolute; left:50%; top:66px; z-index:50;
+  transform:translate(-50%, -8px); max-width:700px; padding:9px 20px;
+  font-size:12.5px; letter-spacing:.05em; color:#e8f3f4;
+  background:rgba(4,14,18,.97);
+  border:1px solid rgba(95,224,200,.45); border-radius:2px;
+  box-shadow:0 16px 40px rgba(0,0,0,.65);
+  opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+}
+.toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div class="stage" id="stage">
+    <div class="bg" id="bg"></div>
+    <div class="bg-tint"></div>
+    <div class="scanlines"></div>
+
+    <div class="cast" id="cast"></div>
+
+    <div class="vignette"></div>
+    <div class="bottom-shade"></div>
+
+    <!-- 左上：时间 / 日期 / 地点 / 天气 -->
+    <div class="hud-left">
+      <div class="hud-time" id="hudTime">--:--</div>
+      <div class="hud-info">
+        <div class="hud-date" id="hudDate">—</div>
+        <div class="hud-place" id="hudPlace">—</div>
+        <div class="hud-weather" id="hudWeather">—</div>
+      </div>
+    </div>
+
+    <!-- 右上：回顾 / 状态 / 音效（无生图） -->
+    <div class="top-actions">
+      <button class="pill" id="btnReview" title="回顾（R）">
+        <span class="ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/>
+          </svg>
+        </span>
+        <span class="lbl">回顾</span>
+      </button>
+      <button class="pill" id="btnStatus" title="状态（G）">
+        <span class="ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+            <path d="M5 7h14M5 12h14M5 17h14"/>
+          </svg>
+        </span>
+        <span class="lbl">状态</span>
+      </button>
+      <button class="pill" id="btnSound" title="设置">
+        <span class="ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7h9M18 7h2M4 12h3M12 12h8M4 17h9M18 17h2"/>
+            <circle cx="15.5" cy="7" r="2"/>
+            <circle cx="9.5" cy="12" r="2"/>
+            <circle cx="15.5" cy="17" r="2"/>
+          </svg>
+        </span>
+        <span class="lbl">设置</span>
+      </button>
+    </div>
+
+    <!-- 底部对话框 -->
+    <div class="dialog" id="dialog">
+      <div class="speaker-tag" id="speakerTag"><span>旁白</span></div>
+      <div class="dialog-box">
+        <div class="line" id="line"></div>
+        <div class="dialog-tools">
+          <button class="ff prev" id="prevBtn" title="上一句"><span>‹</span></button>
+          <button class="ff" id="ffBtn" title="继续"><span class="c1">›</span><span class="c2">›</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 回顾 -->
+    <div class="overlay" id="ovHistory">
+      <div class="modal">
+        <div class="modal-deco tl"></div><div class="modal-deco br"></div>
+        <div class="modal-wm">LOG</div>
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-index">01</div>
+            <div class="modal-head-text">
+              <div class="modal-title">回顾<small>DIALOGUE LOG</small></div>
+              <div class="modal-sub">本段对话记录 · 点击任意一行跳转</div>
+            </div>
+          </div>
+          <div class="modal-close" data-close>✕</div>
+        </div>
+        <div class="modal-body" id="histBody"></div>
+        <div class="modal-foot"><span>ESC 关闭</span><span>RHODES ISLAND · FIELD LOG</span></div>
+      </div>
+    </div>
+
+    <!-- 状态 -->
+    <div class="overlay" id="ovStatus">
+      <div class="modal wide">
+        <div class="modal-deco tl"></div><div class="modal-deco br"></div>
+        <div class="modal-wm">STATUS</div>
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-index">02</div>
+            <div class="modal-head-text">
+              <div class="modal-title">状态<small>STATUS</small></div>
+              <div class="modal-sub">博士 / 在场人员 / 物品 / 行动记录</div>
+            </div>
+          </div>
+          <div class="modal-close" data-close>✕</div>
+        </div>
+        <div class="tabs" id="statusTabs"></div>
+        <div class="modal-body" id="statusBody"></div>
+        <div class="tag-pop" id="tagPop"></div>
+        <div class="modal-foot"><span>ESC 关闭</span><span>RHODES ISLAND · STATUS TERMINAL</span></div>
+      </div>
+    </div>
+
+    <!-- 音效 -->
+    <div class="overlay" id="ovSound">
+      <div class="modal wide">
+        <div class="modal-deco tl"></div><div class="modal-deco br"></div>
+        <div class="modal-wm">CONFIG</div>
+        <div class="modal-head">
+          <div class="modal-head-left">
+            <div class="modal-index">03</div>
+            <div class="modal-head-text">
+              <div class="modal-title">设置<small>SETTINGS</small></div>
+              <div class="modal-sub">字体 / 音效</div>
+            </div>
+          </div>
+          <div class="modal-close" data-close>✕</div>
+        </div>
+        <div class="modal-body">
+          <section class="cfg-section">
+            <div class="cfg-section-title"><span class="num">00</span>字体</div>
+            <div class="cfg-row">
+              <label class="cfg-label" for="fontSelect">界面字体</label>
+              <select class="cfg-select" id="fontSelect">
+                <option value="default">默认无衬线</option>
+                <option value="yahei">微软雅黑</option>
+                <option value="dengxian">等线</option>
+                <option value="song">宋体</option>
+                <option value="kai">楷体</option>
+                <option value="fangsong">仿宋</option>
+                <option value="youyuan">圆体</option>
+                <option value="mono">等宽</option>
+              </select>
+            </div>
+            <div class="cfg-hint">只影响界面里的中文正文与标题；时间、编号、英文数据标签保持终端字体。</div>
+          </section>
+          <section class="cfg-section">
+            <div class="cfg-section-title"><span class="num">02</span>素材</div>
+            <div class="cfg-field">
+              <label class="cfg-label" for="assetBase">素材根目录（留空 = 与 HTML 同目录）</label>
+              <input class="cfg-input" id="assetBase" type="text" placeholder="例如 https://testingcf.jsdelivr.net/gh/stickalwwe/mrfz_zz@main/">
+            </div>
+            <div class="cfg-hint">
+              立绘：立绘/&lt;charId&gt;_1b.png；场景：场景图/&lt;分类&gt;/&lt;文件名&gt;.png。<br>
+              修改后会立即重新加载当前画面。
+            </div>
+          </section>
+          <section class="cfg-section">
+            <div class="cfg-section-title"><span class="num">03</span>音效</div>
+            <div class="cfg-row">
+              <button class="cfg-btn" id="btnSfxToggle">打字音效：开</button>
+            </div>
+            <div class="cfg-hint">
+              音效由浏览器实时合成，不依赖外部音频文件。<br>
+              首次点击界面后才会解锁声音，这是浏览器的自动播放限制。
+            </div>
+          </section>
+        </div>
+        <div class="modal-foot"><span>ESC 关闭</span><span>字体：<b id="fontNow">默认</b> · 音效：<b id="sfxNow">开</b></span></div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var NARRATOR = '旁白';
+  var TYPING_MS = 40;
+  var PORTRAITS = {
+  "Amiya": "立绘/char_002_amiya_1b.png",
+  "Kal'tsit": "立绘/char_003_kalts_1b.png",
+  "Ch'en": "立绘/char_010_chen_1b.png",
+  "Blaze": "立绘/char_017_huang_1b.png",
+  "Nearl the Radiant Knight": "立绘/char_1014_nearl2_1b.png",
+  "Eyjafjalla the Hvít Aska": "立绘/char_1016_agoat2_1b.png",
+  "Vina Victoria": "立绘/char_1019_siege2_1b.png",
+  "Sora": "立绘/char_101_sora_1b.png",
+  "Reed The Flame Shadow": "立绘/char_1020_reed2_1b.png",
+  "Texas": "立绘/char_102_texas_1b.png",
+  "Swire the Elegant Wit": "立绘/char_1033_swire2_1b.png",
+  "Jessica the Liberated": "立绘/char_1034_jesca2_1b.png",
+  "Thorns the Lodestar": "立绘/char_1039_thorn2_1b.png",
+  "Exusiai": "立绘/char_103_angel_1b.png",
+  "Exusiai the New Covenant": "立绘/char_1041_angel2_1b.png",
+  "Franka": "立绘/char_106_franka_1b.png",
+  "Liskarm": "立绘/char_107_liskam_1b.png",
+  "Silence": "立绘/char_108_silent_1b.png",
+  "Deepcolor": "立绘/char_110_deepcl_1b.png",
+  "Siege": "立绘/char_112_siege_1b.png",
+  "Зима": "立绘/char_115_headbr_1b.png",
+  "Hibiscus": "立绘/char_120_hibisc_1b.png",
+  "Lava": "立绘/char_121_lava_1b.png",
+  "Fang": "立绘/char_123_fang_1b.png",
+  "Kroos": "立绘/char_124_kroos_1b.png",
+  "Ptilopsis": "立绘/char_128_plosis_1b.png",
+  "Blue Poison": "立绘/char_129_bluep_1b.png",
+  "Dobermann": "立绘/char_130_doberm_1b.png",
+  "Ifrit": "立绘/char_134_ifrit_1b.png",
+  "Astgenne": "立绘/char_135_halo_1b.png",
+  "Hoshiguma": "立绘/char_136_hsguma_1b.png",
+  "Lappland": "立绘/char_140_whitew_1b.png",
+  "Haze": "立绘/char_141_nights_1b.png",
+  "Specter": "立绘/char_143_ghost_1b.png",
+  "Projekt Red": "立绘/char_144_red_1b.png",
+  "Provence": "立绘/char_145_prove_1b.png",
+  "Shining": "立绘/char_147_shining_1b.png",
+  "Crownslayer": "立绘/char_1502_crosly_1b.png",
+  "Warfarin": "立绘/char_171_bldsk_1b.png",
+  "SilverAsh": "立绘/char_172_svrash_1b.png",
+  "Cliffheart": "立绘/char_173_slchan_1b.png",
+  "Pramanix": "立绘/char_174_slbell_1b.png",
+  "Nightingale": "立绘/char_179_cgbird_1b.png",
+  "Eyjafjalla": "立绘/char_180_amgoat_1b.png",
+  "Gavial": "立绘/char_187_ccheal_1b.png",
+  "Hellagur": "立绘/char_188_helage_1b.png",
+  "Frostleaf": "立绘/char_193_frostl_1b.png",
+  "Истина": "立绘/char_195_glassb_1b.png",
+  "Гум": "立绘/char_196_sunbr_1b.png",
+  "Роса": "立绘/char_197_poca_1b.png",
+  "Typhon": "立绘/char_2012_typhon_1b.png",
+  "Ceobe": "立绘/char_2013_cerber_1b.png",
+  "Nian": "立绘/char_2014_nian_1b.png",
+  "Dusk": "立绘/char_2015_dusk_1b.png",
+  "Croissant": "立绘/char_201_moeshd_1b.png",
+  "Ling": "立绘/char_2023_ling_1b.png",
+  "Chongyue": "立绘/char_2024_chyue_1b.png",
+  "Shu": "立绘/char_2025_shu_1b.png",
+  "Yu": "立绘/char_2026_yu_1b.png",
+  "Wang": "立绘/char_2027_wang_1b.png",
+  "Saria": "立绘/char_202_demkni_1b.png",
+  "Platinum": "立绘/char_204_platnm_1b.png",
+  "Gnosis": "立绘/char_206_gnosis_1b.png",
+  "Melantha": "立绘/char_208_melan_1b.png",
+  "Mostima": "立绘/char_213_mostma_1b.png",
+  "Bagpipe": "立绘/char_222_bpipe_1b.png",
+  "Aak": "立绘/char_225_haak_1b.png",
+  "Jessica": "立绘/char_235_jesica_1b.png",
+  "Gravel": "立绘/char_237_gravel_1b.png",
+  "Vanilla": "立绘/char_240_wyvern_1b.png",
+  "Mayer": "立绘/char_242_otter_1b.png",
+  "Virtuosa": "立绘/char_245_cello_1b.png",
+  "Magallan": "立绘/char_248_mgllan_1b.png",
+  "Muelsyse": "立绘/char_249_mlyss_1b.png",
+  "Phantom": "立绘/char_250_phatom_1b.png",
+  "Reed": "立绘/char_261_sddrag_1b.png",
+  "Skadi": "立绘/char_263_skadi_1b.png",
+  "Mountain": "立绘/char_264_f12yin_1b.png",
+  "Whislash": "立绘/char_265_sophia_1b.png",
+  "Orchid": "立绘/char_278_orchid_1b.png",
+  "Executor": "立绘/char_279_excu_1b.png",
+  "Popukar": "立绘/char_281_popka_1b.png",
+  "Angelina": "立绘/char_291_aglina_1b.png",
+  "Thorns": "立绘/char_293_thorns_1b.png",
+  "Harmonie": "立绘/char_297_hamoni_1b.png",
+  "Fiammetta": "立绘/char_300_phenxi_1b.png",
+  "Ambriel": "立绘/char_302_glaze_1b.png",
+  "Leizi": "立绘/char_306_leizi_1b.png",
+  "Swire": "立绘/char_308_swire_1b.png",
+  "Mudrock": "立绘/char_311_mudrok_1b.png",
+  "Lee": "立绘/char_322_lmlee_1b.png",
+  "Archetto": "立绘/char_332_archet_1b.png",
+  "Iris": "立绘/char_338_iris_1b.png",
+  "Schwarz": "立绘/char_340_shwaz_1b.png",
+  "Santalla": "立绘/char_341_sntlla_1b.png",
+  "Beeswax": "立绘/char_344_beewax_1b.png",
+  "Ceylon": "立绘/char_348_ceylon_1b.png",
+  "Surtr": "立绘/char_350_surtr_1b.png",
+  "Suzuran": "立绘/char_358_lisa_1b.png",
+  "Saga": "立绘/char_362_saga_1b.png",
+  "Goldenglow": "立绘/char_377_gdglow_1b.png",
+  "Mint": "立绘/char_388_mint_1b.png",
+  "Rosmontis": "立绘/char_391_rosmon_1b.png",
+  "Irene": "立绘/char_4009_irene_1b.png",
+  "Weedy": "立绘/char_400_weedy_1b.png",
+  "Entelechia": "立绘/char_4010_etlchi_1b.png",
+  "Lessing": "立绘/char_4011_lessng_1b.png",
+  "Elysium": "立绘/char_401_elysm_1b.png",
+  "Vulpisfoglia": "立绘/char_4026_vulpis_1b.png",
+  "Ho'olheyak": "立绘/char_4027_heyak_1b.png",
+  "Bellone": "立绘/char_4037_demetr_1b.png",
+  "Horn": "立绘/char_4039_horn_1b.png",
+  "Lumen": "立绘/char_4042_lumen_1b.png",
+  "Ebenholz": "立绘/char_4046_ebnhlz_1b.png",
+  "Dorothy": "立绘/char_4048_doroth_1b.png",
+  "Позёмка": "立绘/char_4055_bgsnow_1b.png",
+  "Titi": "立绘/char_4056_titi_1b.png",
+  "Pepe": "立绘/char_4058_pepe_1b.png",
+  "Młynar": "立绘/char_4064_mlynar_1b.png",
+  "Penance": "立绘/char_4065_judge_1b.png",
+  "Stainless": "立绘/char_4072_ironmn_1b.png",
+  "Lin": "立绘/char_4080_lin_1b.png",
+  "Warmy": "立绘/char_4081_warmy_1b.png",
+  "Qiubai": "立绘/char_4082_qiubai_1b.png",
+  "Wind Chimes": "立绘/char_4083_chimes_1b.png",
+  "Ines": "立绘/char_4087_ines_1b.png",
+  "Hoederer": "立绘/char_4088_hodrer_1b.png",
+  "Viviana": "立绘/char_4098_vvana_1b.png",
+  "Coldshot": "立绘/char_4104_coldst_1b.png",
+  "Bryophyta": "立绘/char_4106_bryota_1b.png",
+  "Degenbrecher": "立绘/char_4116_blkkgt_1b.png",
+  "Ray": "立绘/char_4117_ray_1b.png",
+  "Zuo Le": "立绘/char_4121_zuole_1b.png",
+  "Odda": "立绘/char_4131_odda_1b.png",
+  "Ascalon": "立绘/char_4132_ascln_1b.png",
+  "Logos": "立绘/char_4133_logos_1b.png",
+  "Civilight Eterna": "立绘/char_4134_cetsyr_1b.png",
+  "Narantuya": "立绘/char_4138_narant_1b.png",
+  "Papyrus": "立绘/char_4139_papyrs_1b.png",
+  "Ulpianus": "立绘/char_4145_ulpia_1b.png",
+  "Nymph": "立绘/char_4146_nymph_1b.png",
+  "Eunectes": "立绘/char_416_zumama_1b.png",
+  "Xingzhu": "立绘/char_4172_xingzh_1b.png",
+  "Nowell": "立绘/char_4173_nowell_1b.png",
+  "Lemuen": "立绘/char_4193_lemuen_1b.png",
+  "Raidian": "立绘/char_4195_radian_1b.png",
+  "Haruka": "立绘/char_4202_haruka_1b.png",
+  "Mantra": "立绘/char_4204_mantra_1b.png",
+  "Веточки": "立绘/char_4207_branch_1b.png",
+  "Снегурочка": "立绘/char_4208_wintim_1b.png",
+  "Flametail": "立绘/char_420_flamtl_1b.png",
+  "Nasti": "立绘/char_4212_nasti_1b.png",
+  "Вий": "立绘/char_4226_veen_1b.png",
+  "Closure": "立绘/char_4228_closur_1b.png",
+  "Aphrissa": "立绘/char_4229_aphris_1b.png",
+  "Blemishine": "立绘/char_423_blemsh_1b.png",
+  "Carnelian": "立绘/char_426_billro_1b.png",
+  "Vigil": "立绘/char_427_vigil_1b.png",
+  "Fartooth": "立绘/char_430_fartth_1b.png",
+  "Ashlock": "立绘/char_431_ashlok_1b.png",
+  "Mizuki": "立绘/char_437_mizuki_1b.png",
+  "Necrass": "立绘/char_450_necras_1b.png",
+  "Passenger": "立绘/char_472_pasngr_1b.png",
+  "Gladiia": "立绘/char_474_glady_1b.png",
+  "Saileach": "立绘/char_479_sleach_1b.png",
+  "Pallas": "立绘/char_485_pallas_1b.png",
+  "Wild Mane": "立绘/char_496_wildmn_1b.png",
+  "阿米娅": "立绘/char_002_amiya_1b.png",
+  "凯尔希": "立绘/char_003_kalts_1b.png",
+  "陈": "立绘/char_010_chen_1b.png",
+  "煌": "立绘/char_017_huang_1b.png",
+  "耀骑士临光": "立绘/char_1014_nearl2_1b.png",
+  "纯烬艾雅法拉": "立绘/char_1016_agoat2_1b.png",
+  "维娜·维多利亚": "立绘/char_1019_siege2_1b.png",
+  "空": "立绘/char_101_sora_1b.png",
+  "焰影苇草": "立绘/char_1020_reed2_1b.png",
+  "德克萨斯": "立绘/char_102_texas_1b.png",
+  "琳琅诗怀雅": "立绘/char_1033_swire2_1b.png",
+  "涤火杰西卡": "立绘/char_1034_jesca2_1b.png",
+  "引星棘刺": "立绘/char_1039_thorn2_1b.png",
+  "能天使": "立绘/char_103_angel_1b.png",
+  "新约能天使": "立绘/char_1041_angel2_1b.png",
+  "芙兰卡": "立绘/char_106_franka_1b.png",
+  "雷蛇": "立绘/char_107_liskam_1b.png",
+  "赫默": "立绘/char_108_silent_1b.png",
+  "深海色": "立绘/char_110_deepcl_1b.png",
+  "推进之王": "立绘/char_112_siege_1b.png",
+  "W": "立绘/char_113_cqbw_1b.png",
+  "凛冬": "立绘/char_115_headbr_1b.png",
+  "芙蓉": "立绘/char_120_hibisc_1b.png",
+  "炎熔": "立绘/char_121_lava_1b.png",
+  "芬": "立绘/char_123_fang_1b.png",
+  "克洛丝": "立绘/char_124_kroos_1b.png",
+  "白面鸮": "立绘/char_128_plosis_1b.png",
+  "蓝毒": "立绘/char_129_bluep_1b.png",
+  "杜宾": "立绘/char_130_doberm_1b.png",
+  "伊芙利特": "立绘/char_134_ifrit_1b.png",
+  "星源": "立绘/char_135_halo_1b.png",
+  "星熊": "立绘/char_136_hsguma_1b.png",
+  "拉普兰德": "立绘/char_140_whitew_1b.png",
+  "夜烟": "立绘/char_141_nights_1b.png",
+  "幽灵鲨": "立绘/char_143_ghost_1b.png",
+  "红": "立绘/char_144_red_1b.png",
+  "普罗旺斯": "立绘/char_145_prove_1b.png",
+  "闪灵": "立绘/char_147_shining_1b.png",
+  "弑君者": "立绘/char_1502_crosly_1b.png",
+  "华法琳": "立绘/char_171_bldsk_1b.png",
+  "银灰": "立绘/char_172_svrash_1b.png",
+  "崖心": "立绘/char_173_slchan_1b.png",
+  "初雪": "立绘/char_174_slbell_1b.png",
+  "夜莺": "立绘/char_179_cgbird_1b.png",
+  "艾雅法拉": "立绘/char_180_amgoat_1b.png",
+  "嘉维尔": "立绘/char_187_ccheal_1b.png",
+  "赫拉格": "立绘/char_188_helage_1b.png",
+  "霜叶": "立绘/char_193_frostl_1b.png",
+  "真理": "立绘/char_195_glassb_1b.png",
+  "古米": "立绘/char_196_sunbr_1b.png",
+  "早露": "立绘/char_197_poca_1b.png",
+  "提丰": "立绘/char_2012_typhon_1b.png",
+  "刻俄柏": "立绘/char_2013_cerber_1b.png",
+  "年": "立绘/char_2014_nian_1b.png",
+  "夕": "立绘/char_2015_dusk_1b.png",
+  "可颂": "立绘/char_201_moeshd_1b.png",
+  "令": "立绘/char_2023_ling_1b.png",
+  "重岳": "立绘/char_2024_chyue_1b.png",
+  "黍": "立绘/char_2025_shu_1b.png",
+  "余": "立绘/char_2026_yu_1b.png",
+  "望": "立绘/char_2027_wang_1b.png",
+  "塞雷娅": "立绘/char_202_demkni_1b.png",
+  "白金": "立绘/char_204_platnm_1b.png",
+  "灵知": "立绘/char_206_gnosis_1b.png",
+  "玫兰莎": "立绘/char_208_melan_1b.png",
+  "莫斯提马": "立绘/char_213_mostma_1b.png",
+  "风笛": "立绘/char_222_bpipe_1b.png",
+  "阿": "立绘/char_225_haak_1b.png",
+  "杰西卡": "立绘/char_235_jesica_1b.png",
+  "砾": "立绘/char_237_gravel_1b.png",
+  "香草": "立绘/char_240_wyvern_1b.png",
+  "梅尔": "立绘/char_242_otter_1b.png",
+  "塑心": "立绘/char_245_cello_1b.png",
+  "麦哲伦": "立绘/char_248_mgllan_1b.png",
+  "缪尔赛思": "立绘/char_249_mlyss_1b.png",
+  "傀影": "立绘/char_250_phatom_1b.png",
+  "苇草": "立绘/char_261_sddrag_1b.png",
+  "斯卡蒂": "立绘/char_263_skadi_1b.png",
+  "山": "立绘/char_264_f12yin_1b.png",
+  "鞭刃": "立绘/char_265_sophia_1b.png",
+  "梓兰": "立绘/char_278_orchid_1b.png",
+  "送葬人": "立绘/char_279_excu_1b.png",
+  "泡普卡": "立绘/char_281_popka_1b.png",
+  "安洁莉娜": "立绘/char_291_aglina_1b.png",
+  "棘刺": "立绘/char_293_thorns_1b.png",
+  "和弦": "立绘/char_297_hamoni_1b.png",
+  "菲亚梅塔": "立绘/char_300_phenxi_1b.png",
+  "安比尔": "立绘/char_302_glaze_1b.png",
+  "惊蛰": "立绘/char_306_leizi_1b.png",
+  "诗怀雅": "立绘/char_308_swire_1b.png",
+  "泥岩": "立绘/char_311_mudrok_1b.png",
+  "老鲤": "立绘/char_322_lmlee_1b.png",
+  "空弦": "立绘/char_332_archet_1b.png",
+  "爱丽丝": "立绘/char_338_iris_1b.png",
+  "黑": "立绘/char_340_shwaz_1b.png",
+  "寒檀": "立绘/char_341_sntlla_1b.png",
+  "蜜蜡": "立绘/char_344_beewax_1b.png",
+  "锡兰": "立绘/char_348_ceylon_1b.png",
+  "史尔特尔": "立绘/char_350_surtr_1b.png",
+  "铃兰": "立绘/char_358_lisa_1b.png",
+  "嵯峨": "立绘/char_362_saga_1b.png",
+  "澄闪": "立绘/char_377_gdglow_1b.png",
+  "薄绿": "立绘/char_388_mint_1b.png",
+  "迷迭香": "立绘/char_391_rosmon_1b.png",
+  "艾丽妮": "立绘/char_4009_irene_1b.png",
+  "温蒂": "立绘/char_400_weedy_1b.png",
+  "隐德来希": "立绘/char_4010_etlchi_1b.png",
+  "止颂": "立绘/char_4011_lessng_1b.png",
+  "极境": "立绘/char_401_elysm_1b.png",
+  "忍冬": "立绘/char_4026_vulpis_1b.png",
+  "霍尔海雅": "立绘/char_4027_heyak_1b.png",
+  "贝洛内": "立绘/char_4037_demetr_1b.png",
+  "号角": "立绘/char_4039_horn_1b.png",
+  "流明": "立绘/char_4042_lumen_1b.png",
+  "黑键": "立绘/char_4046_ebnhlz_1b.png",
+  "多萝西": "立绘/char_4048_doroth_1b.png",
+  "鸿雪": "立绘/char_4055_bgsnow_1b.png",
+  "缇缇": "立绘/char_4056_titi_1b.png",
+  "佩佩": "立绘/char_4058_pepe_1b.png",
+  "玛恩纳": "立绘/char_4064_mlynar_1b.png",
+  "斥罪": "立绘/char_4065_judge_1b.png",
+  "白铁": "立绘/char_4072_ironmn_1b.png",
+  "林": "立绘/char_4080_lin_1b.png",
+  "温米": "立绘/char_4081_warmy_1b.png",
+  "仇白": "立绘/char_4082_qiubai_1b.png",
+  "铎铃": "立绘/char_4083_chimes_1b.png",
+  "伊内丝": "立绘/char_4087_ines_1b.png",
+  "赫德雷": "立绘/char_4088_hodrer_1b.png",
+  "薇薇安娜": "立绘/char_4098_vvana_1b.png",
+  "冰酿": "立绘/char_4104_coldst_1b.png",
+  "苍苔": "立绘/char_4106_bryota_1b.png",
+  "锏": "立绘/char_4116_blkkgt_1b.png",
+  "莱伊": "立绘/char_4117_ray_1b.png",
+  "左乐": "立绘/char_4121_zuole_1b.png",
+  "奥达": "立绘/char_4131_odda_1b.png",
+  "阿斯卡纶": "立绘/char_4132_ascln_1b.png",
+  "逻各斯": "立绘/char_4133_logos_1b.png",
+  "魔王": "立绘/char_4134_cetsyr_1b.png",
+  "娜仁图亚": "立绘/char_4138_narant_1b.png",
+  "莎草": "立绘/char_4139_papyrs_1b.png",
+  "乌尔比安": "立绘/char_4145_ulpia_1b.png",
+  "妮芙": "立绘/char_4146_nymph_1b.png",
+  "森蚺": "立绘/char_416_zumama_1b.png",
+  "行箸": "立绘/char_4172_xingzh_1b.png",
+  "诺威尔": "立绘/char_4173_nowell_1b.png",
+  "Mon3tr": "立绘/char_4179_monstr_1b.png",
+  "蕾缪安": "立绘/char_4193_lemuen_1b.png",
+  "电弧": "立绘/char_4195_radian_1b.png",
+  "遥": "立绘/char_4202_haruka_1b.png",
+  "真言": "立绘/char_4204_mantra_1b.png",
+  "折桠": "立绘/char_4207_branch_1b.png",
+  "冬时": "立绘/char_4208_wintim_1b.png",
+  "焰尾": "立绘/char_420_flamtl_1b.png",
+  "娜斯提": "立绘/char_4212_nasti_1b.png",
+  "维伊": "立绘/char_4226_veen_1b.png",
+  "可露希尔": "立绘/char_4228_closur_1b.png",
+  "谬因": "立绘/char_4229_aphris_1b.png",
+  "瑕光": "立绘/char_423_blemsh_1b.png",
+  "卡涅利安": "立绘/char_426_billro_1b.png",
+  "伺夜": "立绘/char_427_vigil_1b.png",
+  "远牙": "立绘/char_430_fartth_1b.png",
+  "灰毫": "立绘/char_431_ashlok_1b.png",
+  "水月": "立绘/char_437_mizuki_1b.png",
+  "死芒": "立绘/char_450_necras_1b.png",
+  "异客": "立绘/char_472_pasngr_1b.png",
+  "歌蕾蒂娅": "立绘/char_474_glady_1b.png",
+  "琴柳": "立绘/char_479_sleach_1b.png",
+  "帕拉斯": "立绘/char_485_pallas_1b.png",
+  "野鬃": "立绘/char_496_wildmn_1b.png",
+  "char_002_amiya": "立绘/char_002_amiya_1b.png",
+  "char_003_kalts": "立绘/char_003_kalts_1b.png",
+  "char_010_chen": "立绘/char_010_chen_1b.png",
+  "char_017_huang": "立绘/char_017_huang_1b.png",
+  "char_1014_nearl2": "立绘/char_1014_nearl2_1b.png",
+  "char_1016_agoat2": "立绘/char_1016_agoat2_1b.png",
+  "char_1019_siege2": "立绘/char_1019_siege2_1b.png",
+  "char_101_sora": "立绘/char_101_sora_1b.png",
+  "char_1020_reed2": "立绘/char_1020_reed2_1b.png",
+  "char_102_texas": "立绘/char_102_texas_1b.png",
+  "char_1033_swire2": "立绘/char_1033_swire2_1b.png",
+  "char_1034_jesca2": "立绘/char_1034_jesca2_1b.png",
+  "char_1039_thorn2": "立绘/char_1039_thorn2_1b.png",
+  "char_103_angel": "立绘/char_103_angel_1b.png",
+  "char_1041_angel2": "立绘/char_1041_angel2_1b.png",
+  "char_106_franka": "立绘/char_106_franka_1b.png",
+  "char_107_liskam": "立绘/char_107_liskam_1b.png",
+  "char_108_silent": "立绘/char_108_silent_1b.png",
+  "char_110_deepcl": "立绘/char_110_deepcl_1b.png",
+  "char_112_siege": "立绘/char_112_siege_1b.png",
+  "char_113_cqbw": "立绘/char_113_cqbw_1b.png",
+  "char_115_headbr": "立绘/char_115_headbr_1b.png",
+  "char_120_hibisc": "立绘/char_120_hibisc_1b.png",
+  "char_121_lava": "立绘/char_121_lava_1b.png",
+  "char_123_fang": "立绘/char_123_fang_1b.png",
+  "char_124_kroos": "立绘/char_124_kroos_1b.png",
+  "char_128_plosis": "立绘/char_128_plosis_1b.png",
+  "char_129_bluep": "立绘/char_129_bluep_1b.png",
+  "char_130_doberm": "立绘/char_130_doberm_1b.png",
+  "char_134_ifrit": "立绘/char_134_ifrit_1b.png",
+  "char_135_halo": "立绘/char_135_halo_1b.png",
+  "char_136_hsguma": "立绘/char_136_hsguma_1b.png",
+  "char_140_whitew": "立绘/char_140_whitew_1b.png",
+  "char_141_nights": "立绘/char_141_nights_1b.png",
+  "char_143_ghost": "立绘/char_143_ghost_1b.png",
+  "char_144_red": "立绘/char_144_red_1b.png",
+  "char_145_prove": "立绘/char_145_prove_1b.png",
+  "char_147_shining": "立绘/char_147_shining_1b.png",
+  "char_1502_crosly": "立绘/char_1502_crosly_1b.png",
+  "char_171_bldsk": "立绘/char_171_bldsk_1b.png",
+  "char_172_svrash": "立绘/char_172_svrash_1b.png",
+  "char_173_slchan": "立绘/char_173_slchan_1b.png",
+  "char_174_slbell": "立绘/char_174_slbell_1b.png",
+  "char_179_cgbird": "立绘/char_179_cgbird_1b.png",
+  "char_180_amgoat": "立绘/char_180_amgoat_1b.png",
+  "char_187_ccheal": "立绘/char_187_ccheal_1b.png",
+  "char_188_helage": "立绘/char_188_helage_1b.png",
+  "char_193_frostl": "立绘/char_193_frostl_1b.png",
+  "char_195_glassb": "立绘/char_195_glassb_1b.png",
+  "char_196_sunbr": "立绘/char_196_sunbr_1b.png",
+  "char_197_poca": "立绘/char_197_poca_1b.png",
+  "char_2012_typhon": "立绘/char_2012_typhon_1b.png",
+  "char_2013_cerber": "立绘/char_2013_cerber_1b.png",
+  "char_2014_nian": "立绘/char_2014_nian_1b.png",
+  "char_2015_dusk": "立绘/char_2015_dusk_1b.png",
+  "char_201_moeshd": "立绘/char_201_moeshd_1b.png",
+  "char_2023_ling": "立绘/char_2023_ling_1b.png",
+  "char_2024_chyue": "立绘/char_2024_chyue_1b.png",
+  "char_2025_shu": "立绘/char_2025_shu_1b.png",
+  "char_2026_yu": "立绘/char_2026_yu_1b.png",
+  "char_2027_wang": "立绘/char_2027_wang_1b.png",
+  "char_202_demkni": "立绘/char_202_demkni_1b.png",
+  "char_204_platnm": "立绘/char_204_platnm_1b.png",
+  "char_206_gnosis": "立绘/char_206_gnosis_1b.png",
+  "char_208_melan": "立绘/char_208_melan_1b.png",
+  "char_213_mostma": "立绘/char_213_mostma_1b.png",
+  "char_222_bpipe": "立绘/char_222_bpipe_1b.png",
+  "char_225_haak": "立绘/char_225_haak_1b.png",
+  "char_235_jesica": "立绘/char_235_jesica_1b.png",
+  "char_237_gravel": "立绘/char_237_gravel_1b.png",
+  "char_240_wyvern": "立绘/char_240_wyvern_1b.png",
+  "char_242_otter": "立绘/char_242_otter_1b.png",
+  "char_245_cello": "立绘/char_245_cello_1b.png",
+  "char_248_mgllan": "立绘/char_248_mgllan_1b.png",
+  "char_249_mlyss": "立绘/char_249_mlyss_1b.png",
+  "char_250_phatom": "立绘/char_250_phatom_1b.png",
+  "char_261_sddrag": "立绘/char_261_sddrag_1b.png",
+  "char_263_skadi": "立绘/char_263_skadi_1b.png",
+  "char_264_f12yin": "立绘/char_264_f12yin_1b.png",
+  "char_265_sophia": "立绘/char_265_sophia_1b.png",
+  "char_278_orchid": "立绘/char_278_orchid_1b.png",
+  "char_279_excu": "立绘/char_279_excu_1b.png",
+  "char_281_popka": "立绘/char_281_popka_1b.png",
+  "char_291_aglina": "立绘/char_291_aglina_1b.png",
+  "char_293_thorns": "立绘/char_293_thorns_1b.png",
+  "char_297_hamoni": "立绘/char_297_hamoni_1b.png",
+  "char_300_phenxi": "立绘/char_300_phenxi_1b.png",
+  "char_302_glaze": "立绘/char_302_glaze_1b.png",
+  "char_306_leizi": "立绘/char_306_leizi_1b.png",
+  "char_308_swire": "立绘/char_308_swire_1b.png",
+  "char_311_mudrok": "立绘/char_311_mudrok_1b.png",
+  "char_322_lmlee": "立绘/char_322_lmlee_1b.png",
+  "char_332_archet": "立绘/char_332_archet_1b.png",
+  "char_338_iris": "立绘/char_338_iris_1b.png",
+  "char_340_shwaz": "立绘/char_340_shwaz_1b.png",
+  "char_341_sntlla": "立绘/char_341_sntlla_1b.png",
+  "char_344_beewax": "立绘/char_344_beewax_1b.png",
+  "char_348_ceylon": "立绘/char_348_ceylon_1b.png",
+  "char_350_surtr": "立绘/char_350_surtr_1b.png",
+  "char_358_lisa": "立绘/char_358_lisa_1b.png",
+  "char_362_saga": "立绘/char_362_saga_1b.png",
+  "char_377_gdglow": "立绘/char_377_gdglow_1b.png",
+  "char_388_mint": "立绘/char_388_mint_1b.png",
+  "char_391_rosmon": "立绘/char_391_rosmon_1b.png",
+  "char_4009_irene": "立绘/char_4009_irene_1b.png",
+  "char_400_weedy": "立绘/char_400_weedy_1b.png",
+  "char_4010_etlchi": "立绘/char_4010_etlchi_1b.png",
+  "char_4011_lessng": "立绘/char_4011_lessng_1b.png",
+  "char_401_elysm": "立绘/char_401_elysm_1b.png",
+  "char_4026_vulpis": "立绘/char_4026_vulpis_1b.png",
+  "char_4027_heyak": "立绘/char_4027_heyak_1b.png",
+  "char_4037_demetr": "立绘/char_4037_demetr_1b.png",
+  "char_4039_horn": "立绘/char_4039_horn_1b.png",
+  "char_4042_lumen": "立绘/char_4042_lumen_1b.png",
+  "char_4046_ebnhlz": "立绘/char_4046_ebnhlz_1b.png",
+  "char_4048_doroth": "立绘/char_4048_doroth_1b.png",
+  "char_4055_bgsnow": "立绘/char_4055_bgsnow_1b.png",
+  "char_4056_titi": "立绘/char_4056_titi_1b.png",
+  "char_4058_pepe": "立绘/char_4058_pepe_1b.png",
+  "char_4064_mlynar": "立绘/char_4064_mlynar_1b.png",
+  "char_4065_judge": "立绘/char_4065_judge_1b.png",
+  "char_4072_ironmn": "立绘/char_4072_ironmn_1b.png",
+  "char_4080_lin": "立绘/char_4080_lin_1b.png",
+  "char_4081_warmy": "立绘/char_4081_warmy_1b.png",
+  "char_4082_qiubai": "立绘/char_4082_qiubai_1b.png",
+  "char_4083_chimes": "立绘/char_4083_chimes_1b.png",
+  "char_4087_ines": "立绘/char_4087_ines_1b.png",
+  "char_4088_hodrer": "立绘/char_4088_hodrer_1b.png",
+  "char_4098_vvana": "立绘/char_4098_vvana_1b.png",
+  "char_4104_coldst": "立绘/char_4104_coldst_1b.png",
+  "char_4106_bryota": "立绘/char_4106_bryota_1b.png",
+  "char_4116_blkkgt": "立绘/char_4116_blkkgt_1b.png",
+  "char_4117_ray": "立绘/char_4117_ray_1b.png",
+  "char_4121_zuole": "立绘/char_4121_zuole_1b.png",
+  "char_4131_odda": "立绘/char_4131_odda_1b.png",
+  "char_4132_ascln": "立绘/char_4132_ascln_1b.png",
+  "char_4133_logos": "立绘/char_4133_logos_1b.png",
+  "char_4134_cetsyr": "立绘/char_4134_cetsyr_1b.png",
+  "char_4138_narant": "立绘/char_4138_narant_1b.png",
+  "char_4139_papyrs": "立绘/char_4139_papyrs_1b.png",
+  "char_4145_ulpia": "立绘/char_4145_ulpia_1b.png",
+  "char_4146_nymph": "立绘/char_4146_nymph_1b.png",
+  "char_416_zumama": "立绘/char_416_zumama_1b.png",
+  "char_4172_xingzh": "立绘/char_4172_xingzh_1b.png",
+  "char_4173_nowell": "立绘/char_4173_nowell_1b.png",
+  "char_4179_monstr": "立绘/char_4179_monstr_1b.png",
+  "char_4193_lemuen": "立绘/char_4193_lemuen_1b.png",
+  "char_4195_radian": "立绘/char_4195_radian_1b.png",
+  "char_4202_haruka": "立绘/char_4202_haruka_1b.png",
+  "char_4204_mantra": "立绘/char_4204_mantra_1b.png",
+  "char_4207_branch": "立绘/char_4207_branch_1b.png",
+  "char_4208_wintim": "立绘/char_4208_wintim_1b.png",
+  "char_420_flamtl": "立绘/char_420_flamtl_1b.png",
+  "char_4212_nasti": "立绘/char_4212_nasti_1b.png",
+  "char_4226_veen": "立绘/char_4226_veen_1b.png",
+  "char_4228_closur": "立绘/char_4228_closur_1b.png",
+  "char_4229_aphris": "立绘/char_4229_aphris_1b.png",
+  "char_423_blemsh": "立绘/char_423_blemsh_1b.png",
+  "char_426_billro": "立绘/char_426_billro_1b.png",
+  "char_427_vigil": "立绘/char_427_vigil_1b.png",
+  "char_430_fartth": "立绘/char_430_fartth_1b.png",
+  "char_431_ashlok": "立绘/char_431_ashlok_1b.png",
+  "char_437_mizuki": "立绘/char_437_mizuki_1b.png",
+  "char_450_necras": "立绘/char_450_necras_1b.png",
+  "char_472_pasngr": "立绘/char_472_pasngr_1b.png",
+  "char_474_glady": "立绘/char_474_glady_1b.png",
+  "char_479_sleach": "立绘/char_479_sleach_1b.png",
+  "char_485_pallas": "立绘/char_485_pallas_1b.png",
+  "char_496_wildmn": "立绘/char_496_wildmn_1b.png"
+};
+
+  /* 场景短 ID → 素材路径（AI 只写短 ID，不写路径） */
+  var SCENES = {
+    '天空-云海': '场景图/01_天空与云海/Avg_bg_27_g24_cloudy_sea.png',
+    '天空-黄昏荒野': '场景图/01_天空与云海/Avg_bg_27_g26_dusk_wild.png',
+    '天空-星空': '场景图/01_天空与云海/Avg_bg_38_g21_skystarry_L1.png',
+    '天空-晚霞': '场景图/01_天空与云海/Avg_bg_47_g15_eveningglow_L1.png',
+    '雪原-雪径': '场景图/02_雪原与冰川/Avg_bg_24_g11_snowylane.png',
+    '雪原-雪林': '场景图/02_雪原与冰川/Avg_bg_24_g1_snowyforest.png',
+    '雪原-冰川': '场景图/02_雪原与冰川/Avg_bg_40_g2_glacier.png',
+    '雪原-雪原': '场景图/02_雪原与冰川/Avg_bg_42_g12_snowfield.png',
+    '雪原-雪山战场': '场景图/02_雪原与冰川/Avg_bg_79_g20_snowbattlefield.png',
+    '沙漠-绿洲': '场景图/03_沙漠与绿洲/Avg_bg_35_g16_desertoasis.png',
+    '沙漠-城镇(日)': '场景图/03_沙漠与绿洲/Avg_bg_35_g17_deserttown_d.png',
+    '沙漠-城镇(夜)': '场景图/03_沙漠与绿洲/Avg_bg_35_g18_deserttown_n.png',
+    '沙漠-沙暴': '场景图/03_沙漠与绿洲/Avg_bg_49_g12_sandstorm.png',
+    '沙漠-盐漠': '场景图/03_沙漠与绿洲/Avg_bg_57_g1_saltdesert_d.png',
+    '水域-湖泊': '场景图/04_海洋与水域/Avg_bg_45_g6_lakescenery_d.png',
+    '水域-湖畔营地': '场景图/04_海洋与水域/Avg_bg_36_g7_lakecamp.png',
+    '水域-沼泽': '场景图/04_海洋与水域/Avg_bg_34_g3_swamp_d.png',
+    '水域-海面': '场景图/04_海洋与水域/Avg_bg_60_g9_seasurface_ex.png',
+    '水域-岛屿港口': '场景图/04_海洋与水域/Avg_bg_65_g3_islandharbor.png',
+    '森林-红叶林': '场景图/06_森林与林地/Avg_bg_36_g3_redleafforest.png',
+    '森林-黑森林': '场景图/06_森林与林地/Avg_bg_40_g1_blackforest.png',
+    '森林-村落街道': '场景图/06_森林与林地/Avg_bg_39_g6_villagestreet.png',
+    '森林-维多利亚街道(日)': '场景图/06_森林与林地/Avg_bg_21_G3_victoria_street_d.png',
+    '森林-维多利亚街道(夜)': '场景图/06_森林与林地/Avg_bg_25_mini02_victoria_street_n.png',
+    '山野-山道': '场景图/07_山野与自然/Avg_bg_24_g12_mountpath.png',
+    '山野-山村': '场景图/07_山野与自然/Avg_bg_36_g1_easternvillageD.png',
+    '山野-荒野战场': '场景图/07_山野与自然/Avg_bg_37_g10_wildbattlefield.png',
+    '山野-巨兽骸骨': '场景图/07_山野与自然/Avg_bg_38_g16_hugebone.png',
+    '山野-乡间小屋': '场景图/07_山野与自然/Avg_bg_29_g3_cottage.png',
+    '废墟-维多利亚废墟(日)': '场景图/08_废墟与遗迹/Avg_bg_21_G4_victoria_street_d_ruins.png',
+    '废墟-维多利亚废墟(夜)': '场景图/08_废墟与遗迹/Avg_bg_21_G5_victoria_street_n_ruins.png',
+    '废墟-废弃矿区': '场景图/08_废墟与遗迹/Avg_bg_27_g3_minearea_abandoned.png',
+    '废墟-下水道': '场景图/08_废墟与遗迹/Avg_bg_28_g12_sewer.png',
+    '废墟-萨卡兹遗迹': '场景图/08_废墟与遗迹/Avg_bg_50_g6_sarkazancientruins.png',
+    '废墟-矿井': '场景图/08_废墟与遗迹/Avg_bg_42_g1_mine.png',
+    '废墟-王者遗迹': '场景图/08_废墟与遗迹/Avg_bg_32_g9_kingrest.png',
+    '载具-列车车厢': '场景图/09_载具与港口/Avg_bg_45_g3_traincarriage.png',
+    '载具-列车站台': '场景图/09_载具与港口/Avg_bg_45_g1_kjeragtrainstation.png',
+    '载具-飞艇甲板': '场景图/09_载具与港口/Avg_bg_50_g9_airshipdeck.png',
+    '载具-战舰甲板': '场景图/09_载具与港口/Avg_bg_34_g11_hispdwarshipdeck.png',
+    '载具-港口': '场景图/09_载具与港口/Avg_bg_51_g9_shipport.png',
+    '载具-地铁': '场景图/09_载具与港口/Avg_bg_27_g7_subway.png',
+    '伦蒂尼姆-外环街区-夜': '场景图/10_都市与街道/Avg_bg_21_G6_decisivebattlealley_n.png',
+    '炎国-都市-夜': '场景图/10_都市与街道/Avg_bg_25_g03_yandowntown_n.png',
+    '炎国-小巷-夜': '场景图/10_都市与街道/Avg_bg_25_g02_yanalley_n.png',
+    '拉特兰-屋顶': '场景图/10_都市与街道/Avg_bg_26_g10_laterano_roof.png',
+    '拉特兰-小巷': '场景图/10_都市与街道/Avg_bg_26_g11_laterano_alley.png',
+    '汐斯塔-初见': '场景图/10_都市与街道/Avg_bg_41_g13_siestafirstimpression.png',
+    '维多利亚-广场': '场景图/10_都市与街道/Avg_bg_24_g6_square.png',
+    '室内-指挥室': '场景图/11_室内与建筑/Avg_bg_29_g9_headquarter.png',
+    '室内-实验室': '场景图/11_室内与建筑/Avg_bg_29_g5_laboratory.png',
+    '室内-图书馆': '场景图/11_室内与建筑/Avg_bg_30_g5_library_indoor.png',
+    '室内-酒吧': '场景图/12_其他/Avg_bg_55_g5_victoriaspeakeasy.png',
+    '室内-教堂大厅': '场景图/11_室内与建筑/Avg_bg_26_g2_laterano_cathedralhall.png',
+    '室内-杜林大厅': '场景图/11_室内与建筑/Avg_bg_30_g7_durinhall.png',
+    '室内-审讯室': '场景图/11_室内与建筑/Avg_bg_21_G1_interrogat_room.png',
+    '室内-病房': '场景图/11_室内与建筑/Avg_bg_26_g7_laterano_ward.png',
+    '室内-教室': '场景图/11_室内与建筑/Avg_bg_32_g3_school_indoor.png',
+    '其他-源石峡谷': '场景图/12_其他/Avg_bg_50_g1_originiumcanyon.png',
+    '其他-能量井': '场景图/12_其他/Avg_bg_38_g14_energywell.png',
+    '其他-多重空间': '场景图/12_其他/Avg_bg_44_g12_multispace.png',
+    '其他-龙宫': '场景图/12_其他/Avg_bg_58_g5_dragonpalace.png',
+    '其他-祭坛': '场景图/12_其他/Avg_bg_50_g7_confessariusaltar_on.png'
+  };
+
+  /* 酒馆外预览用的演示数据；接入 MVU 后会被变量覆盖 */
+  var DEMO = {
+    世界: {
+      时间: '21:47',
+      日期: '11月2日',
+      地点: '维多利亚 · 伦蒂尼姆外环',
+      天气: '雨停 · 9°C · 能见度低',
+      背景图: '伦蒂尼姆-外环街区-夜',
+      音效开关: true
+    },
+    演出: {
+      分段: [
+        { 说话者: '旁白', 旁白: true, 立绘: ['阿米娅', '凯尔希'],
+          台词: '雨停之后，伦蒂尼姆外环的积水还没有退。霓虹在路面上碎成一地，风从封锁线那头吹过来，带着铁锈和源石粉尘的味道。' },
+        { 说话者: '阿米娅', 旁白: false, 立绘: [],
+          台词: '博士，前面的街区已经封锁了。罗德岛的接应小队会在三个街口外等我们，我们得在宵禁前赶过去。' },
+        { 说话者: '阿米娅', 旁白: false, 立绘: [],
+          台词: '这里的源石浓度……比行动简报上写的还要高。请大家戴好防护面罩，不要摘下来。' },
+        { 说话者: '凯尔希', 旁白: false, 立绘: [],
+          台词: '不必紧张。结晶还没有扩散到会影响行动的程度——至少现在还没有。' },
+        { 说话者: '凯尔希', 旁白: false, 立绘: [],
+          台词: '但如果你执意要走进那条巷子，我希望你先想清楚：我们要找的东西，值不值得用整整一支小队去换。' },
+        { 说话者: '阿米娅', 旁白: false, 立绘: [],
+          台词: '凯尔希医生……' },
+        { 说话者: '阿米娅', 旁白: false, 立绘: [],
+          台词: '那栋楼里还有人没能撤出来。就算只有一线可能，我也想去看看。' },
+        { 说话者: '凯尔希', 旁白: false, 立绘: [],
+          台词: '……我明白了。把时间控制在二十分钟以内，超时我会亲自进去把你们拖出来。' },
+        { 说话者: '旁白', 旁白: true, 立绘: [],
+          台词: '她把医疗箱递过来，指尖在箱扣上停了半秒。远处的探照灯扫过楼顶，像一把缓慢移动的刀。' },
+        { 说话者: '阿米娅', 旁白: false, 立绘: [],
+          台词: '博士，我们走吧。……这一次，不会再有人被留下了。' }
+      ],
+      说话者: '阿米娅',
+      台词: '博士，我们走吧。……这一次，不会再有人被留下了。',
+      旁白: false
+    },
+    主角: {
+      姓名: '博士',
+      身份: '罗德岛战术指挥官',
+      外貌: '兜帽与面罩遮住大半张脸，只露出一双安静的眼睛。',
+      服饰: '深灰色战术外套，肩部缝着罗德岛标识，腰间挂着终端。',
+      姿势: '站在队伍后方，一只手按在终端上。',
+      状态: [
+        { 名称: '轻度疲劳', 稀有度: '普通', 描述: '连续赶路后的倦意，注意力偶尔会慢半拍。' },
+        { 名称: '源石粉尘暴露', 稀有度: '精良', 描述: '短时间吸入粉尘，喉咙发干，需要尽快戴好滤芯面罩。' }
+      ]
+    },
+    在场人物: {
+      阿米娅: {
+        阵营: '罗德岛', 身份: '公开领袖', 职业: '术师 · 近卫', 种族: '卡特斯',
+        好感度: 82, 好感度评价: '把你当作可以并肩的人',
+        服饰: '黑色连帽外套，蓝色内衬，袖口缝着罗德岛制式臂章',
+        姿势: '站在巷口，右手扶着防护面罩，侧身看向封锁线'
+      },
+      凯尔希: {
+        阵营: '罗德岛', 身份: '医疗部门负责人', 职业: '医师', 种族: '菲林',
+        好感度: 74, 好感度评价: '信任你的判断，但不会替你承担后果',
+        服饰: '白色长外套，深绿内衬，随身携带制式医疗箱',
+        姿势: '立于街灯下，目光越过积水望向巷子深处'
+      }
+    },
+    人际关系: {
+      阿米娅: { 关系: '同行者', 关系评价: '她习惯先问你的意见，再替所有人做决定。', 好感度: 82 },
+      凯尔希: { 关系: '监督者', 关系评价: '她不说多余的话，但会在你回头时仍站在原地。', 好感度: 74 }
+    },
+    物品栏: {
+      '罗德岛制式医疗箱': { 稀有度: '关键', 类型: '装备', 数量: 1, 描述: '凯尔希随身携带的医疗箱，箱扣内侧刻着罗德岛的编号。里面的药品足够处理一次中度感染。' },
+      '便携源石检测仪': { 稀有度: '稀有', 类型: '工具', 数量: 1, 描述: '巴掌大的检测仪，读数比行动简报高出两个刻度。屏幕边缘有一道旧裂纹。' },
+      '防护面罩': { 稀有度: '精良', 类型: '消耗品', 数量: 3, 描述: '带滤芯的半脸面罩，能过滤大部分源石粉尘。滤芯已经用过一次。' },
+      '应急理智合剂': { 稀有度: '精良', 类型: '消耗品', 数量: 1, 描述: '苦涩的透明液体，喝下去能让发胀的脑袋清醒一阵。副作用是之后会更累。' },
+      '行动简报（外环）': { 稀有度: '普通', 类型: '文件', 数量: 1, 描述: '两页纸的行动简报，附着一张手绘街区图。封锁线被红笔圈了三遍。' },
+      '伦蒂尼姆通行凭证': { 稀有度: '普通', 类型: '凭证', 数量: 2, 描述: '外环临时通行用的纸卡，边角被雨泡软了。宵禁之后大概就不管用了。' },
+      '龙门币': { 稀有度: '普通', 类型: '货币', 数量: 860, 描述: '沿途商户都认的硬通货，够在城里住上几天。' }
+    },
+    大事记: [
+      { 时间: '11月2日 21:32', 事件: '收到伦蒂尼姆外环的求援信号，确认封锁线内仍有滞留居民。' },
+      { 时间: '11月2日 21:40', 事件: '与阿米娅、凯尔希在三个街口外汇合，接应小队进入待命。' },
+      { 时间: '11月2日 21:47', 事件: '进入外环街区，实测源石浓度高于行动简报。' },
+      { 时间: '11月2日 21:52', 事件: '确认目标建筑内仍有生命反应，决定进入巷子。' }
+    ],
+    行动建议: [
+      '沿街道右侧推进，避开积水下的源石结晶',
+      '进入建筑前确认撤离路线与接应信号',
+      '把停留时间控制在二十分钟以内',
+      '先问阿米娅这栋楼的撤离记录'
+    ],
+    '$剧情回顾': [],
+    系统日志: []
+  };
+
+  var FONTS = {
+    default: '"HarmonyOS Sans SC","Noto Sans SC","Source Han Sans SC","Microsoft YaHei","PingFang SC",sans-serif',
+    yahei: '"Microsoft YaHei","Microsoft YaHei UI","PingFang SC",sans-serif',
+    dengxian: '"DengXian","Microsoft YaHei",sans-serif',
+    song: '"SimSun","Songti SC","STSong",serif',
+    kai: '"KaiTi","Kaiti SC","STKaiti",serif',
+    fangsong: '"FangSong","STFangsong",serif',
+    youyuan: '"YouYuan","Microsoft YaHei",sans-serif',
+    mono: '"Consolas","Microsoft YaHei",monospace'
+  };
+  var FONT_NAMES = {
+    default: '默认', yahei: '微软雅黑', dengxian: '等线', song: '宋体',
+    kai: '楷体', fangsong: '仿宋', youyuan: '圆体', mono: '等宽'
+  };
+
+  var RARITY = { '普通': 'r1', '精良': 'r2', '稀有': 'r3', '关键': 'r4' };
+
+  /* ---------------- 工具 ---------------- */
+  function S(v, d) { return (v === undefined || v === null || v === '') ? d : String(v); }
+  function num(v, d) { var n = Number(v); return isFinite(n) ? n : d; }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function clone(o) { try { return JSON.parse(JSON.stringify(o)); } catch (e) { return o; } }
+  function cleanName(n) { return String(n == null ? '' : n).replace(/[「」“”"『』]/g, '').trim(); }
+  function svg(paths, sw) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (sw || 1.6) + '" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>';
+  }
+  function itemIcon(type) {
+    var icons = {
+      '装备': '<path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+      '工具': '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-2.4z"/>',
+      '消耗品': '<path d="M9 3h6M10 3v5l-4 8a3 3 0 0 0 2.7 4.3h6.6A3 3 0 0 0 18 16l-4-8V3"/><path d="M7.5 14h9"/>',
+      '文件': '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/>',
+      '凭证': '<rect x="3" y="6" width="18" height="12"/><path d="M7 10h5M7 14h3"/><circle cx="17" cy="12" r="2"/>',
+      '材料': '<path d="M12 3l7 4v10l-7 4-7-4V7z"/><path d="M12 3v18M5 7l7 4 7-4"/>',
+      '货币': '<circle cx="12" cy="12" r="8"/><path d="M9.5 9.5h5M9.5 14.5h5M12 8v8"/>',
+      '纪念品': '<path d="M12 4l2.3 4.8 5.2.8-3.8 3.7.9 5.2-4.6-2.4-4.6 2.4.9-5.2L4.5 9.6l5.2-.8z"/>'
+    };
+    return svg(icons[type] || icons['文件'], 1.5);
+  }
+
+  /* ---------------- MVU / 宿主 ---------------- */
+  function hasHost() {
+    try { return typeof Mvu !== 'undefined' && Mvu && typeof Mvu.getMvuData === 'function'; } catch (e) { return false; }
+  }
+  function currentId() {
+    try { if (typeof getCurrentMessageId === 'function') return getCurrentMessageId(); } catch (e) {}
+    return -1;
+  }
+  function readStat() {
+    if (!hasHost()) return clone(DEMO);
+    try {
+      var v = Mvu.getMvuData({ type: 'message', message_id: currentId() });
+      return (v && v.stat_data) ? v.stat_data : clone(DEMO);
+    } catch (e) { return clone(DEMO); }
+  }
+
+  /* ---------------- 元素 ---------------- */
+  var stage = document.getElementById('stage');
+  var viewport = document.getElementById('viewport');
+  var el = {
+    bg: document.getElementById('bg'),
+    cast: document.getElementById('cast'),
+    hudTime: document.getElementById('hudTime'),
+    hudDate: document.getElementById('hudDate'),
+    hudPlace: document.getElementById('hudPlace'),
+    hudWeather: document.getElementById('hudWeather'),
+    speakerTag: document.getElementById('speakerTag'),
+    line: document.getElementById('line'),
+    prevBtn: document.getElementById('prevBtn'),
+    ffBtn: document.getElementById('ffBtn'),
+    btnReview: document.getElementById('btnReview'),
+    btnStatus: document.getElementById('btnStatus'),
+    btnSound: document.getElementById('btnSound'),
+    ovHistory: document.getElementById('ovHistory'),
+    ovStatus: document.getElementById('ovStatus'),
+    ovSound: document.getElementById('ovSound'),
+    histBody: document.getElementById('histBody'),
+    statusTabs: document.getElementById('statusTabs'),
+    statusBody: document.getElementById('statusBody'),
+    tagPop: document.getElementById('tagPop'),
+    toast: document.getElementById('toast'),
+    btnSfxToggle: document.getElementById('btnSfxToggle'),
+    sfxNow: document.getElementById('sfxNow'),
+    fontSelect: document.getElementById('fontSelect'),
+    fontNow: document.getElementById('fontNow'),
+    assetBase: document.getElementById('assetBase')
+  };
+
+  /* ---------------- 缩放 ---------------- */
+  var W = 1024, H = 576;
+  function fit() {
+    var w = viewport.clientWidth || 0;
+    if (!w) w = Math.min(window.innerWidth || W, W);
+    if (!w) w = W;
+    viewport.style.height = Math.round(w * H / W) + 'px';
+    stage.style.transform = 'scale(' + (w / W) + ')';
+  }
+  if (window.ResizeObserver) { try { new ResizeObserver(fit).observe(viewport); } catch (e) {} }
+  window.addEventListener('resize', fit);
+  fit();
+  stage.addEventListener('scroll', function () {
+    if (stage.scrollLeft || stage.scrollTop) { stage.scrollLeft = 0; stage.scrollTop = 0; }
+  }, { passive: true });
+
+  /* ---------------- 字体设置 ---------------- */
+  var FONT_KEY = 'ark_ui_font_v1';
+  function applyFont(key) {
+    if (!FONTS[key]) key = 'default';
+    document.documentElement.style.setProperty('--font-cn', FONTS[key]);
+    if (el.fontSelect) el.fontSelect.value = key;
+    if (el.fontNow) el.fontNow.textContent = FONT_NAMES[key] || key;
+    try { localStorage.setItem(FONT_KEY, key); } catch (e) {}
+  }
+  function initFont() {
+    var key = 'default';
+    try { key = localStorage.getItem(FONT_KEY) || 'default'; } catch (e) {}
+    applyFont(key);
+  }
+
+  /* ---------------- 素材根目录 ---------------- */
+  var ASSET_KEY = 'ark_asset_base_v1';
+  var DEFAULT_ASSET_BASE = 'https://testingcf.jsdelivr.net/gh/stickalwwe/mrfz_zz@main/';
+  var assetBase = DEFAULT_ASSET_BASE;
+  function initAssetBase() {
+    try {
+      var saved = localStorage.getItem(ASSET_KEY);
+      assetBase = (saved === null) ? DEFAULT_ASSET_BASE : saved;
+    } catch (e) { assetBase = DEFAULT_ASSET_BASE; }
+    if (el.assetBase) el.assetBase.value = assetBase;
+  }
+  function assetURL(p) {
+    p = String(p == null ? '' : p);
+    if (!p) return '';
+    if (/^(https?:|file:|data:)/i.test(p)) return p;
+    if (!assetBase) return p;
+    return assetBase.replace(/\/?$/, '/') + p.replace(/^\/+/, '');
+  }
+
+  /* ---------------- 世界 ---------------- */
+  function withYear(s) {
+    s = String(s == null ? '' : s);
+    if (!s || s === '—' || s.indexOf('年') >= 0) return s;
+    return '1098年' + s;
+  }
+  function scenePath(v) {
+    v = String(v == null ? '' : v).trim();
+    if (!v) return '';
+    if (SCENES[v]) return SCENES[v];
+    if (v.indexOf('场景图/') === 0) return v;
+    for (var k in SCENES) {
+      if (SCENES[k].split('/').pop().replace(/\.(png|jpg)$/i, '') === v) return SCENES[k];
+    }
+    return '';
+  }
+  function renderWorld(sd) {
+    var w = (sd && sd.世界) || {};
+    var p = scenePath(w.背景图);
+    var url = assetURL(p);
+    if (url && el.bg.getAttribute('data-src') !== url) {
+      el.bg.setAttribute('data-src', url);
+      var probe = new Image();
+      probe.onload = function () {
+        el.bg.style.backgroundImage = 'url("' + url.replace(/"/g, '\\"') + '")';
+      };
+      probe.onerror = function () {
+        if (url !== p) el.bg.style.backgroundImage = 'url("' + p.replace(/"/g, '\\"') + '")';
+      };
+      probe.src = url;
+    }
+    el.hudTime.textContent = S(w.时间, '--:--');
+    el.hudDate.textContent = withYear(S(w.日期, '—'));
+    el.hudPlace.textContent = S(w.地点, '—');
+    el.hudWeather.textContent = S(w.天气, '—');
+  }
+
+  /* ---------------- 立绘 ---------------- */
+  var castNodes = {};
+
+  function listOf(seg) {
+    return (seg && Array.isArray(seg.立绘))
+      ? seg.立绘.map(cleanName).filter(function (n) { return n && n !== NARRATOR; }).slice(0, 3)
+      : [];
+  }
+  /* 本段没写立绘时沿用上一段；整轮都没写返回 null（自动模式） */
+  function effPortraits(list, idx) {
+    for (var i = Math.min(idx, list.length - 1); i >= 0; i--) {
+      var p = list[i] && list[i].立绘;
+      if (Array.isArray(p) && p.length) {
+        return p.map(cleanName).filter(function (n) { return n && n !== NARRATOR; }).slice(0, 3);
+      }
+    }
+    return null;
+  }
+  function autoCast(sd, idx) {
+    var pres = (sd && sd.在场人物) || {};
+    var presEmpty = !Object.keys(pres).length;
+    var out = [];
+    for (var i = 0; i <= idx && i < segs.length; i++) {
+      var s = segs[i];
+      if (!s || s.旁白) continue;
+      var n = cleanName(s.说话者);
+      if (!n || n === NARRATOR) continue;
+      if (!presEmpty && !pres[n]) continue;
+      if (PORTRAITS[n] && out.indexOf(n) < 0) out.push(n);
+    }
+    return out.slice(-3);
+  }
+  function renderChars(portraits, speaker, narrating) {
+    var list = (portraits || []).map(cleanName).filter(function (n) {
+      return n && n !== NARRATOR && PORTRAITS[n];
+    }).slice(0, 3);
+    var slots = list.length === 1 ? ['center'] : list.length === 2 ? ['left', 'right'] : ['left', 'center', 'right'];
+    var active = -1;
+    if (!narrating && speaker) {
+      active = list.indexOf(cleanName(speaker));
+      if (active < 0 && list.length) active = 0;
+    }
+    var seen = {};
+    list.forEach(function (n, i) {
+      var key = i + '|' + n;
+      seen[key] = 1;
+      var rec = castNodes[key];
+      if (!rec) {
+        var node = document.createElement('div');
+        node.className = 'slot enter-left';
+        node.setAttribute('data-name', n);
+        var img = document.createElement('img');
+        img.alt = n;
+        img.src = assetURL(PORTRAITS[n]);
+        img.onerror = function () {
+          var local = PORTRAITS[n];
+          if (img.getAttribute('src') !== local) { img.onerror = null; img.src = local; }
+        };
+        node.appendChild(img);
+        node.addEventListener('animationend', function () { node.classList.remove('enter-left'); });
+        el.cast.appendChild(node);
+        rec = castNodes[key] = { node: node, img: img, name: n };
+      }
+      var want = assetURL(PORTRAITS[n]);
+      if (rec.img.getAttribute('src') !== want) rec.img.src = want;
+      rec.node.classList.remove('left', 'center', 'right', 'two', 'active', 'dim', 'speaking');
+      rec.node.classList.add(slots[i]);
+      if (list.length === 2) rec.node.classList.add('two');
+      var isActive = i === active;
+      rec.node.classList.add(isActive ? 'active' : 'dim');
+      if (isActive) rec.node.classList.add('speaking');
+    });
+    Object.keys(castNodes).forEach(function (k) {
+      if (seen[k]) return;
+      var rec = castNodes[k];
+      delete castNodes[k];
+      rec.node.style.opacity = '0';
+      setTimeout(function () {
+        if (rec.node.parentNode) rec.node.parentNode.removeChild(rec.node);
+      }, 320);
+    });
+  }
+
+  /* ---------------- 演出 ---------------- */
+  var segs = [], segIdx = 0, segKey = '', typedKey = '', fin = false;
+  var typingTimer = null, typingFull = '';
+  var curSD = null;
+
+  function cleanText(t) {
+    return String(t == null ? '' : t).replace(/\[\[IMG:[\s\S]*?\]\]\s*$/i, '').trim();
+  }
+  function splitNarratedDialogue(text, names) {
+    text = String(text == null ? '' : text);
+    var re = /[“「『]/g, m;
+    while ((m = re.exec(text))) {
+      var open = m[0];
+      var closeCh = open === '“' ? '”' : (open === '「' ? '」' : '』');
+      var qStart = m.index;
+      var qEnd = text.indexOf(closeCh, qStart + 1);
+      if (qEnd < 0) { re.lastIndex = qStart + 1; continue; }
+      var quote = text.slice(qStart + 1, qEnd).trim();
+      if (!quote) { re.lastIndex = qStart + 1; continue; }
+      var before = text.slice(0, qStart);
+      var best = '', idx = -1;
+      (names || []).forEach(function (n) {
+        if (!n) return;
+        var i = before.lastIndexOf(n);
+        if (i > idx) { idx = i; best = n; }
+      });
+      if (!best || idx < 0) { re.lastIndex = qStart + 1; continue; }
+      var tail = before.slice(idx + best.length);
+      if (tail.length > 24) { re.lastIndex = qStart + 1; continue; }
+      if (!/[：:]/.test(tail) && !/(说|道|问|喊|答|嘟囔|低语|冷笑|骂道|开口|回)[，,\s]*$/.test(tail)) {
+        re.lastIndex = qStart + 1; continue;
+      }
+      return {
+        before: before.slice(0, idx).replace(/[「“『]$/, '').trim(),
+        name: cleanName(best),
+        quote: quote,
+        after: text.slice(qEnd + 1).trim()
+      };
+    }
+    return null;
+  }
+  function normSegs(perf, sd) {
+    var out = [];
+    var names = Object.keys((sd && sd.在场人物) || {}).map(cleanName);
+    (Array.isArray(perf.分段) ? perf.分段 : []).forEach(function (s) {
+      if (!s) return;
+      var sp = cleanName(S(s.说话者, NARRATOR)) || NARRATOR;
+      var narr = !!s.旁白 || sp === NARRATOR;
+      var raw = String(s.台词 == null ? '' : s.台词);
+      var ps = listOf(s);
+      if (narr) {
+        var q = splitNarratedDialogue(raw, names);
+        if (q) {
+          if (q.before) out.push({ 说话者: NARRATOR, 旁白: true, 台词: q.before, 立绘: ps });
+          out.push({ 说话者: q.name, 旁白: false, 台词: q.quote, 立绘: ps });
+          if (q.after) out.push({ 说话者: NARRATOR, 旁白: true, 台词: q.after, 立绘: ps });
+          return;
+        }
+      }
+      out.push({ 说话者: sp, 旁白: narr, 台词: raw, 立绘: ps });
+    });
+    if (!out.length) {
+      var sp0 = cleanName(S(perf.说话者, NARRATOR)) || NARRATOR;
+      out.push({
+        说话者: sp0,
+        旁白: !!perf.旁白 || sp0 === NARRATOR,
+        台词: String(S(perf.台词, '')),
+        立绘: []
+      });
+    }
+    return out;
+  }
+  function curSeg() {
+    if (!segs.length) return { 说话者: NARRATOR, 旁白: true, 台词: '', 立绘: [] };
+    return segs[Math.max(0, Math.min(segIdx, segs.length - 1))];
+  }
+  function fitLine(text) {
+    var maxFs = 16.5, minFs = 12;
+    var lineW = el.line.clientWidth || 584;
+    var availH = 82;
+    var fs = maxFs;
+    while (fs > minFs) {
+      var cpl = Math.max(8, Math.floor(lineW / fs));
+      var lines = 0;
+      String(text == null ? '' : text).split('\n').forEach(function (s) {
+        lines += Math.max(1, Math.ceil(s.length / cpl));
+      });
+      if (lines * fs * 1.7 <= availH) break;
+      fs -= 0.5;
+    }
+    el.line.style.fontSize = fs + 'px';
+  }
+  function typeLine(text) {
+    if (typingTimer) { clearInterval(typingTimer); typingTimer = null; }
+    typingFull = String(text == null ? '' : text);
+    fitLine(typingFull);
+    el.line.textContent = '';
+    el.line.scrollTop = 0;
+    var i = 0;
+    typingTimer = setInterval(function () {
+      el.line.textContent = typingFull.slice(0, ++i);
+      var ch = typingFull.charAt(i - 1);
+      if (ch && /\S/.test(ch) && i % 3 === 0) playTypeTick();
+      if (el.line.scrollHeight > el.line.clientHeight + 2) el.line.scrollTop = el.line.scrollHeight;
+      if (i >= typingFull.length) {
+        clearInterval(typingTimer);
+        typingTimer = null;
+      }
+    }, TYPING_MS);
+  }
+  function drawPerf(sd) {
+    var seg = curSeg();
+    var speaker = cleanName(S(seg.说话者, NARRATOR)) || NARRATOR;
+    var narrating = !!seg.旁白 || speaker === NARRATOR;
+    var highlight = !fin && !narrating;
+    var list = effPortraits(segs, segIdx);
+    if (list === null) list = autoCast(sd, segIdx);
+    renderChars(list, highlight ? speaker : '', narrating || fin);
+    el.speakerTag.querySelector('span').textContent = narrating ? NARRATOR : speaker;
+    el.speakerTag.classList.toggle('narr', narrating);
+    var t = cleanText(seg.台词);
+    var k = segIdx + '|' + t;
+    if (k !== typedKey) {
+      typedKey = k;
+      typeLine(t || '（等待剧情推进…）');
+    }
+    el.ffBtn.classList.toggle('dim', fin);
+  }
+  function renderStage(sd) {
+    curSD = sd;
+    var perf = (sd && sd.演出) || {};
+    var ns = normSegs(perf, sd);
+    var key = JSON.stringify(ns);
+    if (key !== segKey) {
+      segKey = key;
+      segs = ns;
+      typedKey = '';
+      segIdx = 0;
+      fin = false;
+      castNodes = {};
+      el.cast.innerHTML = '';
+    }
+    renderWorld(sd);
+    drawPerf(sd);
+  }
+  function advance() {
+    if (overlay) return;
+    if (typingTimer) {
+      clearInterval(typingTimer);
+      typingTimer = null;
+      el.line.textContent = typingFull;
+      el.line.scrollTop = el.line.scrollHeight;
+      return;
+    }
+    if (segIdx < segs.length - 1) {
+      segIdx += 1;
+      fin = false;
+      drawPerf(curSD);
+      return;
+    }
+    if (!fin) {
+      fin = true;
+      drawPerf(curSD);
+    }
+  }
+  function prevSeg() {
+    if (overlay) return;
+    if (segIdx > 0) {
+      segIdx -= 1;
+      fin = false;
+      drawPerf(curSD);
+    }
+  }
+
+  /* ---------------- 打字音效 ---------------- */
+  var CFG = { sound: true };
+  var audioCtx = null, typeNoiseBuf = null, lastTickAt = 0;
+  function ensureAudioCtx() {
+    if (audioCtx) return audioCtx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { audioCtx = new AC(); } catch (e) { audioCtx = null; }
+    return audioCtx;
+  }
+  function unlockAudio() {
+    var ac = ensureAudioCtx();
+    if (ac && ac.state === 'suspended') { try { ac.resume(); } catch (e) {} }
+  }
+  function typeNoise(ac) {
+    if (typeNoiseBuf) return typeNoiseBuf;
+    var len = Math.max(1, Math.floor(ac.sampleRate * 0.045));
+    var buf = ac.createBuffer(1, len, ac.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) {
+      var k = 1 - i / len;
+      d[i] = (Math.random() * 2 - 1) * k * k * k;
+    }
+    typeNoiseBuf = buf;
+    return buf;
+  }
+  function playTypeTick() {
+    if (!CFG.sound) return;
+    var ac = ensureAudioCtx();
+    if (!ac || ac.state !== 'running') return;
+    var now = ac.currentTime;
+    if (now - lastTickAt < 0.055) return;
+    lastTickAt = now;
+    var src = ac.createBufferSource();
+    src.buffer = typeNoise(ac);
+    var bp = ac.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1900 + Math.random() * 1500;
+    bp.Q.value = 1.1;
+    var g = ac.createGain();
+    g.gain.value = 0.055;
+    src.connect(bp); bp.connect(g); g.connect(ac.destination);
+    src.start(now);
+    var osc = ac.createOscillator(), og = ac.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(260 + Math.random() * 70, now);
+    og.gain.setValueAtTime(0.022, now);
+    og.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+    osc.connect(og); og.connect(ac.destination);
+    osc.start(now); osc.stop(now + 0.06);
+  }
+  function refreshSoundUI() {
+    if (el.btnSfxToggle) el.btnSfxToggle.textContent = '打字音效：' + (CFG.sound ? '开' : '关');
+    if (el.sfxNow) el.sfxNow.textContent = CFG.sound ? '开' : '关';
+    if (el.btnSound) el.btnSound.classList.toggle('off', !CFG.sound);
+  }
+
+  /* ---------------- 浮窗 ---------------- */
+  var overlay = null;
+  function openOverlay(node, cb) {
+    stage.scrollLeft = 0; stage.scrollTop = 0;
+    [el.ovHistory, el.ovStatus, el.ovSound].forEach(function (o) { o.classList.remove('show'); });
+    hideTagPop();
+    node.classList.add('show');
+    overlay = node;
+    if (cb) cb();
+  }
+  function closeOverlay(node) {
+    node.classList.remove('show');
+    if (overlay === node) overlay = null;
+    hideTagPop();
+  }
+
+  /* ---------------- 回顾 ---------------- */
+  function buildHistory() {
+    var html = '';
+    for (var i = 0; i <= segIdx; i++) {
+      var s = segs[i] || {};
+      var narr = !!s.旁白 || cleanName(s.说话者) === NARRATOR;
+      var name = narr ? NARRATOR : cleanName(s.说话者);
+      html += '<div class="hist-item' + (i === segIdx ? ' cur' : '') + '" data-i="' + i + '">' +
+        '<div class="hist-no">' + String(i + 1).padStart(2, '0') + '</div>' +
+        '<div class="hist-main"><div class="hist-name' + (narr ? ' narr' : '') + '">' + esc(name) + '</div>' +
+        '<div class="hist-text">' + esc(cleanText(s.台词)) + '</div></div></div>';
+    }
+    el.histBody.innerHTML = html || '<div class="empty-tip">还没有对话记录。</div>';
+    var cur = el.histBody.querySelector('.hist-item.cur');
+    if (cur) cur.scrollIntoView({ block: 'center' });
+  }
+
+  /* ---------------- 状态 ---------------- */
+  var STATUS_TABS = ['博士状态', '在场人物', '人际关系', '物品栏', '大事记', '行动建议'];
+  var tagData = [];
+  function buildStatus(sd) {
+    sd = sd || curSD || DEMO;
+    var main = sd.主角 || {};
+    var panes = [];
+
+    var p0 = '<div class="cols2"><div class="sec"><div class="sec-title">基本信息</div>';
+    [['姓名', main.姓名], ['身份', main.身份], ['外貌', main.外貌], ['服饰', main.服饰], ['姿势', main.姿势]].forEach(function (f) {
+      p0 += '<div class="kv"><b>' + f[0] + '</b>' + esc(S(f[1], '—')) + '</div>';
+    });
+    p0 += '</div>';
+    tagData = Array.isArray(main.状态) ? main.状态 : [];
+    p0 += '<div class="sec"><div class="sec-title">状态（点击标签查看详情）</div><div class="tags">';
+    if (!tagData.length) p0 += '<div class="empty-tip" style="padding:6px 0">暂无状态</div>';
+    tagData.forEach(function (t, i) {
+      p0 += '<span class="tag ' + (RARITY[t && t.稀有度] || 'r1') + '" data-tag="' + i + '">' + esc(S(t && t.名称, '—')) + '</span>';
+    });
+    p0 += '</div></div></div>';
+    panes.push(p0);
+
+    var persons = sd.在场人物 || {};
+    var pnames = Object.keys(persons);
+    var p1 = '<div class="sec"><div class="sec-title">在场人物（点击展开）</div>';
+    if (!pnames.length) p1 += '<div class="empty-tip">当前无人。</div>';
+    pnames.forEach(function (nm) {
+      var p = persons[nm] || {};
+      var job = S(p.职业, S(p.属性, '—'));
+      var race = S(p.种族, '');
+      p1 += '<div class="person"><div class="person-head">' +
+        '<div class="pinfo"><span class="pname">' + esc(nm) + '</span><span class="pmeta">' + esc(S(p.阵营, '—')) + ' · ' + esc(job) + '</span></div>' +
+        '<span class="pchev"></span></div>' +
+        '<div class="person-body" data-name="' + esc(nm) + '">' +
+          '<div class="pbody-grid">' +
+            '<div class="pcell"><span class="plabel">身份</span><span class="pval">' + esc(S(p.身份, '—')) + '</span></div>' +
+            '<div class="pcell"><span class="plabel">评价</span><span class="pval">' + esc(S(p.好感度评价, '—')) + '</span></div>' +
+          '</div>' +
+          '<div class="ptrust"><span class="plabel">好感</span><div class="pbar"><i style="width:' + Math.max(0, Math.min(100, num(p.好感度, 0))) + '%"></i></div><b>' + num(p.好感度, 0) + '</b></div>' +
+          '<div class="pchips"><span class="pchip">' + esc(S(p.阵营, '无')) + '</span>' + (race ? '<span class="pchip">' + esc(race) + '</span>' : '') + '</div>' +
+          '<div class="ppose"><span class="plabel">服饰</span><p>' + esc(S(p.服饰, '—')) + '</p></div>' +
+          '<div class="ppose"><span class="plabel">姿势</span><p>' + esc(S(p.姿势, '—')) + '</p></div>' +
+        '</div></div>';
+    });
+    p1 += '</div>';
+    panes.push(p1);
+
+    var rels = sd.人际关系 || {};
+    var p2 = '<div class="sec"><div class="sec-title">人际关系</div>';
+    var rnames = Object.keys(rels);
+    if (!rnames.length) p2 += '<div class="empty-tip">暂无记录。</div>';
+    rnames.forEach(function (nm) {
+      var r = rels[nm] || {}, v = Math.max(0, Math.min(100, num(r.好感度, 0)));
+      var grade = v >= 80 ? '信赖' : v >= 60 ? '亲近' : v >= 40 ? '合作' : v >= 20 ? '观察' : '疏离';
+      p2 += '<div class="rel"><div class="rel-top">' +
+        '<span class="rname">' + esc(nm) + '</span><span class="rtype">' + esc(S(r.关系, '—')) + '</span>' +
+        '<span class="rgrade">' + grade + '</span><span class="rval">' + v + '</span></div>' +
+        '<div class="bar"><i style="width:' + v + '%"></i></div>' +
+        '<div class="reval">「' + esc(S(r.关系评价, '—')) + '」</div></div>';
+    });
+    p2 += '</div>';
+    panes.push(p2);
+
+    var items = sd.物品栏 || {};
+    var inames = Object.keys(items);
+    var filters = ['全部'];
+    inames.forEach(function (n) {
+      var t = S(items[n] && items[n].类型, '文件');
+      if (filters.indexOf(t) < 0) filters.push(t);
+    });
+    var p3 = '<div class="sec"><div class="sec-title">物品栏</div><div class="item-filter" id="itemFilter">';
+    filters.forEach(function (f, i) {
+      p3 += '<button class="if-btn' + (i === 0 ? ' active' : '') + '" data-filter="' + esc(f) + '">' + esc(f) + '</button>';
+    });
+    p3 += '</div><div class="items" id="itemGrid">';
+    if (!inames.length) p3 += '<div class="empty-tip">物品栏为空。</div>';
+    inames.forEach(function (nm) {
+      var t = items[nm] || {}, type = S(t.类型, '文件');
+      p3 += '<div class="item ' + (RARITY[t.稀有度] || 'r1') + '" data-type="' + esc(type) + '">' +
+        '<span class="iico">' + itemIcon(type) + '</span>' +
+        '<span class="imain"><span class="iname">' + esc(nm) + '</span><span class="itype">' + esc(type) + ' · ' + esc(S(t.稀有度, '普通')) + '</span></span>' +
+        '<span class="icount">×' + num(t.数量, 0) + '</span>' +
+        '<span class="idesc">' + esc(S(t.描述, '—')) + '</span></div>';
+    });
+    p3 += '</div></div>';
+    panes.push(p3);
+
+    var evs = Array.isArray(sd.大事记) ? sd.大事记 : [];
+    var p4 = '<div class="sec"><div class="sec-title">大事记</div><div class="tl">';
+    if (!evs.length) p4 += '<div class="empty-tip">还没有值得记下的事。</div>';
+    evs.forEach(function (e, i) {
+      var time = String(S(e && e.时间, ''));
+      var parts = time.split(/\s+/);
+      var d = parts.length > 1 ? parts.slice(0, -1).join(' ') : '';
+      var t = parts.length > 1 ? parts[parts.length - 1] : time;
+      p4 += '<div class="tl-item"><div class="tl-date"><b>' + esc(withYear(d || '—')) + '</b><span>' + esc(t || '') + '</span></div>' +
+        '<span class="tl-dot"></span><div class="tl-card"><span class="tl-tag">EVENT ' + String(i + 1).padStart(2, '0') + '</span>' +
+        '<p>' + esc(S(e && e.事件, '')) + '</p></div></div>';
+    });
+    p4 += '</div></div>';
+    panes.push(p4);
+
+    var adv = Array.isArray(sd.行动建议) ? sd.行动建议 : [];
+    var p5 = '<div class="sec"><div class="sec-title">行动建议（点击填入输入栏）</div>' +
+      '<div class="adv-head"><span class="adv-count">可用行动 ' + adv.length + '</span><span class="adv-hint">选择一项，填入输入栏后再发送</span></div><div class="adv-list">';
+    adv.forEach(function (a, i) {
+      var empty = !a;
+      p5 += '<button type="button" class="adv-item' + (i === 0 && !empty ? ' primary' : '') + (empty ? ' empty' : '') + '" data-adv="' + i + '">' +
+        '<span class="adv-no">' + String(i + 1).padStart(2, '0') + '</span>' +
+        '<span class="adv-body"><span class="adv-tx">' + esc(a || '（空）') + '</span>' + (i === 0 && !empty ? '<span class="adv-badge">推荐</span>' : '') + '</span></button>';
+    });
+    p5 += '</div><div class="adv-custom"><input class="adv-input" id="advInput" type="text" maxlength="120" placeholder="自定义行动：输入你想做的事"><button type="button" class="adv-send" id="advSend">发送</button></div></div>';
+    panes.push(p5);
+
+    el.statusTabs.innerHTML = STATUS_TABS.map(function (n, i) {
+      return '<button class="tab-btn' + (i === 0 ? ' active' : '') + '" data-tab="' + i + '">' + n + '</button>';
+    }).join('');
+    el.statusBody.innerHTML = panes.map(function (h, i) {
+      return '<div class="pane' + (i === 0 ? ' show' : '') + '" data-pane="' + i + '">' + h + '</div>';
+    }).join('');
+    el.statusBody.scrollTop = 0;
+    hideTagPop();
+  }
+  function switchTab(i) {
+    var btns = el.statusTabs.querySelectorAll('.tab-btn');
+    for (var k = 0; k < btns.length; k++) btns[k].classList.toggle('active', k === i);
+    var panes = el.statusBody.querySelectorAll('.pane');
+    for (var j = 0; j < panes.length; j++) panes[j].classList.toggle('show', j === i);
+    el.statusBody.scrollTop = 0;
+    hideTagPop();
+  }
+  function showTagPop(tagEl) {
+    var t = tagData[+tagEl.getAttribute('data-tag')] || {};
+    var modal = el.ovStatus.querySelector('.modal');
+    var mr = modal.getBoundingClientRect(), r = tagEl.getBoundingClientRect();
+    var scale = mr.width / modal.offsetWidth;
+    var left = (r.left - mr.left) / scale, top = (r.bottom - mr.top) / scale + 8;
+    el.tagPop.innerHTML = '<div class="tp-head"><span class="tp-name">' + esc(S(t.名称, '—')) + '</span><span class="tp-rarity">' + esc(S(t.稀有度, '普通')) + '</span></div><div class="tp-desc">' + esc(S(t.描述, '—')) + '</div>';
+    el.tagPop.classList.add('show');
+    var w = el.tagPop.offsetWidth, hh = el.tagPop.offsetHeight;
+    if (left + w > modal.offsetWidth - 10) left = modal.offsetWidth - 10 - w;
+    if (left < 10) left = 10;
+    if (top + hh > modal.offsetHeight - 10) top = (r.top - mr.top) / scale - hh - 8;
+    el.tagPop.style.left = left + 'px';
+    el.tagPop.style.top = top + 'px';
+    var prev = el.statusBody.querySelector('.tag.sel');
+    if (prev) prev.classList.remove('sel');
+    tagEl.classList.add('sel');
+  }
+  function hideTagPop() {
+    el.tagPop.classList.remove('show');
+    var sel = el.statusBody.querySelector('.tag.sel');
+    if (sel) sel.classList.remove('sel');
+  }
+
+  /* ---------------- 提示 ---------------- */
+  var toastTimer = null;
+  function toast(msg) {
+    el.toast.textContent = msg;
+    el.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.toast.classList.remove('show'); }, 2200);
+  }
+
+  /* ---------------- 事件 ---------------- */
+  el.btnReview.addEventListener('click', function (e) {
+    e.stopPropagation();
+    openOverlay(el.ovHistory, buildHistory);
+  });
+  el.btnStatus.addEventListener('click', function (e) {
+    e.stopPropagation();
+    openOverlay(el.ovStatus, function () { buildStatus(curSD); });
+  });
+  el.btnSound.addEventListener('click', function (e) {
+    e.stopPropagation();
+    openOverlay(el.ovSound, refreshSoundUI);
+  });
+  el.btnSfxToggle.addEventListener('click', function (e) {
+    e.stopPropagation();
+    CFG.sound = !CFG.sound;
+    refreshSoundUI();
+    if (CFG.sound) { unlockAudio(); playTypeTick(); }
+    toast(CFG.sound ? '打字音效已开启' : '打字音效已关闭');
+  });
+  if (el.fontSelect) {
+    el.fontSelect.addEventListener('change', function () {
+      applyFont(el.fontSelect.value);
+      toast('界面字体已切换');
+    });
+  }
+  if (el.assetBase) {
+    el.assetBase.addEventListener('change', function () {
+      assetBase = el.assetBase.value.trim();
+      try { localStorage.setItem(ASSET_KEY, assetBase); } catch (e) {}
+      castNodes = {};
+      el.cast.innerHTML = '';
+      el.bg.removeAttribute('data-src');
+      renderStage(curSD);
+      toast('素材目录已更新');
+    });
+  }
+
+  [el.ovHistory, el.ovStatus, el.ovSound].forEach(function (ov) {
+    ov.addEventListener('click', function (e) {
+      if (e.target === ov || e.target.hasAttribute('data-close')) closeOverlay(ov);
+    });
+  });
+
+  el.histBody.addEventListener('click', function (e) {
+    var item = e.target.closest('.hist-item');
+    if (!item) return;
+    var i = +item.getAttribute('data-i');
+    if (!isFinite(i)) return;
+    segIdx = i;
+    fin = false;
+    drawPerf(curSD);
+    closeOverlay(el.ovHistory);
+  });
+
+  el.statusTabs.addEventListener('click', function (e) {
+    var b = e.target.closest('.tab-btn');
+    if (b) switchTab(+b.getAttribute('data-tab'));
+  });
+
+  el.statusBody.addEventListener('click', function (e) {
+    var fb = e.target.closest('.if-btn');
+    if (fb) {
+      var f = fb.getAttribute('data-filter');
+      el.statusBody.querySelectorAll('.if-btn').forEach(function (b) { b.classList.toggle('active', b === fb); });
+      el.statusBody.querySelectorAll('#itemGrid .item').forEach(function (card) {
+        card.style.display = (f === '全部' || card.getAttribute('data-type') === f) ? '' : 'none';
+      });
+      return;
+    }
+    var head = e.target.closest('.person-head');
+    if (head) { head.parentNode.classList.toggle('open'); return; }
+    var adv = e.target.closest('.adv-item');
+    if (adv) {
+      if (adv.classList.contains('empty')) return;
+      var idx = +adv.getAttribute('data-adv');
+      var input = el.statusBody.querySelector('#advInput');
+      if (input) { input.value = (curSD.行动建议 || [])[idx] || ''; input.focus(); }
+      return;
+    }
+    if (e.target.closest('#advSend')) {
+      var inp = el.statusBody.querySelector('#advInput');
+      var v = inp ? inp.value.trim() : '';
+      if (!v) { toast('先写下你想做的事'); return; }
+      toast('已选择行动：' + v);
+      if (inp) inp.value = '';
+      return;
+    }
+    var tag = e.target.closest('.tag');
+    if (tag) { showTagPop(tag); return; }
+    hideTagPop();
+  });
+
+  el.statusBody.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target && e.target.id === 'advInput') {
+      e.preventDefault();
+      var btn = el.statusBody.querySelector('#advSend');
+      if (btn) btn.click();
+    }
+  });
+  el.statusBody.addEventListener('scroll', hideTagPop);
+
+  el.ffBtn.addEventListener('click', function (e) { e.stopPropagation(); advance(); });
+  el.prevBtn.addEventListener('click', function (e) { e.stopPropagation(); prevSeg(); });
+  document.getElementById('dialog').addEventListener('click', function (e) {
+    if (e.target.closest('.ff')) return;
+    advance();
+  });
+
+  stage.addEventListener('click', function (e) {
+    unlockAudio();
+    if (e.target.closest('.top-actions') || e.target.closest('.overlay') || e.target.closest('.dialog') || e.target.closest('.slot')) return;
+    advance();
+  });
+
+  window.addEventListener('keydown', function (e) {
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (e.key === 'Escape') { if (overlay) closeOverlay(overlay); return; }
+    if (overlay) return;
+    if (e.key === 'r' || e.key === 'R') { openOverlay(el.ovHistory, buildHistory); return; }
+    if (e.key === 'g' || e.key === 'G') { openOverlay(el.ovStatus, function () { buildStatus(curSD); }); return; }
+    if (e.code === 'Space' || e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      e.preventDefault(); advance();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault(); prevSeg();
+    }
+  });
+
+  /* ---------------- 启动与轮询 ---------------- */
+  initFont();
+  initAssetBase();
+  refreshSoundUI();
+  curSD = readStat();
+  renderStage(curSD);
+  buildStatus(curSD);
+
+  var lastSig = '';
+  function tick() {
+    var sd = readStat();
+    var sig = JSON.stringify({ w: sd.世界, y: sd.演出 });
+    if (sig !== lastSig) {
+      lastSig = sig;
+      renderStage(sd);
+    } else {
+      curSD = sd;
+    }
+  }
+  lastSig = JSON.stringify({ w: curSD.世界, y: curSD.演出 });
+  setInterval(tick, 1500);
+})();
+
+</script>
+</body>
+</html>
