@@ -95,11 +95,11 @@ export const Schema = z
       })
       .prefault({}),
 
-    /* ---------- 主角（博士） ---------- */
+    /* ---------- 主角（玩家，任何身份均可） ---------- */
     主角: z
       .object({
-        姓名: z.string().prefault('博士'),
-        身份: z.string().prefault('罗德岛战术指挥官'),
+        姓名: z.string().prefault('').describe('由玩家决定；未设定时留空，不要替玩家取名'),
+        身份: z.string().prefault('未设定').describe('由玩家决定；未设定时保持“未设定”'),
         外貌: z.string().prefault('').describe('只写剧情中明确出现过的特征，未设定时留空'),
         服饰: z.string().prefault(''),
         姿势: z.string().prefault(''),
